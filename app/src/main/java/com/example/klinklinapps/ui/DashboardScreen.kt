@@ -41,6 +41,7 @@ import com.example.klinklinapps.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    userName: String,
     balance: Int,
     hasActiveOrder: Boolean,
     onPlaceOrder: () -> Unit, 
@@ -107,7 +108,7 @@ fun DashboardScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize().background(Gray100)) {
             when (selectedTab) {
-                0 -> HomeScreen(balance, onPlaceOrder, onOpenSubscription, onTopUp)
+                0 -> HomeScreen(userName, balance, onPlaceOrder, onOpenSubscription, onTopUp)
                 1 -> PromoScreen()
                 2 -> OrdersScreen(hasActiveOrder)
                 3 -> ChatScreen()
@@ -117,9 +118,24 @@ fun DashboardScreen(
 }
 
 @Composable
-fun HomeScreen(balance: Int, onPlaceOrder: () -> Unit, onOpenSubscription: () -> Unit, onTopUp: () -> Unit) {
+fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenSubscription: () -> Unit, onTopUp: () -> Unit) {
     val scrollState = rememberScrollState()
     Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = 32.dp)) {
+        // Welcome Header
+        Column(modifier = Modifier.fillMaxWidth().background(White).padding(horizontal = 16.dp, vertical = 8.dp)) {
+            Text(
+                text = "Hi, $userName!",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Black,
+                color = Gray800
+            )
+            Text(
+                text = "Siap mencuci hari ini?",
+                fontSize = 14.sp,
+                color = Gray500
+            )
+        }
+
         // Balance Card
         Column(modifier = Modifier.fillMaxWidth().background(White).padding(16.dp)) {
             Surface(
