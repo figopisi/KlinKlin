@@ -26,7 +26,9 @@ fun RegisterScreen(
     onBack: () -> Unit,
     onRegisterSuccess: () -> Unit
 ) {
+    var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     
@@ -61,7 +63,7 @@ fun RegisterScreen(
                 color = Color.Black
             )
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             
             Text(
                 text = "Silahkan lengkapi data diri Anda untuk mendaftar!",
@@ -69,7 +71,29 @@ fun RegisterScreen(
                 color = Color.Black
             )
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Text(text = "Nama Lengkap*", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Nama Anda") },
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(text = "Nomor Telepon*", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            OutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Contoh: 08123456789") },
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
             
             Text(text = "Email*", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             OutlinedTextField(
@@ -77,17 +101,10 @@ fun RegisterScreen(
                 onValueChange = { email = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = { Text("Email Anda") },
-                trailingIcon = {
-                    if (email.isNotEmpty()) {
-                        IconButton(onClick = { email = "" }) {
-                            Icon(Icons.Default.Cancel, contentDescription = null, tint = Color.Gray)
-                        }
-                    }
-                },
                 shape = RoundedCornerShape(12.dp)
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
             Text(text = "Kata Sandi*", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             OutlinedTextField(
@@ -99,7 +116,7 @@ fun RegisterScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
             Text(text = "Konfirmasi Kata Sandi*", fontWeight = FontWeight.Bold, fontSize = 14.sp)
             OutlinedTextField(
@@ -120,13 +137,10 @@ fun RegisterScreen(
             
             Button(
                 onClick = { 
-                    if (password != confirmPassword) {
-                        // Error message handled by ViewModel normally, but we can check here too
-                        // Let's just pass it to register and handle logic there or here.
-                        // For simplicity, let's just use the VM.
-                        viewModel.register(email, password, onRegisterSuccess)
+                    if (password == confirmPassword) {
+                        viewModel.register(email, password, name, phone, onRegisterSuccess)
                     } else {
-                        viewModel.register(email, password, onRegisterSuccess)
+                        // handled locally or by VM
                     }
                 },
                 modifier = Modifier
@@ -139,7 +153,7 @@ fun RegisterScreen(
                 if (isLoading) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
                 } else {
-                    Text("Daftar Sekarang", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Daftar Sekarang", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

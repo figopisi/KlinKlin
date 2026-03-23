@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 
@@ -34,16 +35,35 @@ class AuthViewModel : ViewModel() {
             _isLoading.value = true
             db.collection("users").document(user.uid).get()
                 .addOnSuccessListener { document ->
-                    _userRole.value = document.getString("role") ?: "customer"
+                    if (document.exists()) {
+                        _userRole.value = document.getString("role") ?: "customer"
+                    } else {
+                        createDefaultUserDocument(user.uid, user.email ?: "")
+                    }
                     _isLoading.value = false
                 }
-                .addOnFailureListener {
-                    _userRole.value = "customer"
+                .addOnFailureListener { e ->
+                    _errorMessage.value = "Gagal memuat data: ${e.localizedMessage}"
                     _isLoading.value = false
                 }
         } else {
             _userRole.value = null
         }
+    }
+
+    private fun createDefaultUserDocument(uid: String, email: String) {
+        val userData = hashMapOf(
+            "uid" to uid,
+            "name" to email.substringBefore("@"),
+            "email" to email,
+            "phone" to "",
+            "role" to "customer",
+            "createdAt" to FieldValue.serverTimestamp()
+        )
+        db.collection("users").document(uid).set(userData)
+            .addOnSuccessListener {
+                _userRole.value = "customer"
+            }
     }
 
     fun login(email: String, password: String, onSuccess: () -> Unit) {
@@ -63,13 +83,20 @@ class AuthViewModel : ViewModel() {
                         db.collection("users").document(user.uid).get()
                             .addOnSuccessListener { document ->
                                 _isLoading.value = false
-                                _currentUser.value = user
-                                _userRole.value = document.getString("role") ?: "customer"
-                                onSuccess()
+                                if (document.exists()) {
+                                    _currentUser.value = user
+                                    _userRole.value = document.getString("role") ?: "customer"
+                                    onSuccess()
+                                } else {
+                                    createDefaultUserDocument(user.uid, user.email ?: "")
+                                    _currentUser.value = user
+                                    _userRole.value = "customer"
+                                    onSuccess()
+                                }
                             }
-                            .addOnFailureListener {
+                            .addOnFailureListener { e ->
                                 _isLoading.value = false
-                                _errorMessage.value = "Gagal mengambil data role"
+                                _errorMessage.value = "Gagal ambil data: ${e.localizedMessage}"
                             }
                     }
                 } else {
@@ -79,9 +106,9 @@ class AuthViewModel : ViewModel() {
             }
     }
 
-    fun register(email: String, password: String, role: String = "customer", onSuccess: () -> Unit) {
-        if (email.isBlank() || password.isBlank()) {
-            _errorMessage.value = "Email dan password tidak boleh kosong"
+    fun register(email: String, password: String, name: String, phone: String, onSuccess: () -> Unit) {
+        if (email.isBlank() || password.isBlank() || name.isBlank()) {
+            _errorMessage.value = "Data tidak boleh kosong"
             return
         }
         
@@ -99,20 +126,26 @@ class AuthViewModel : ViewModel() {
                     val user = auth.currentUser
                     if (user != null) {
                         val userData = hashMapOf(
+                            "uid" to user.uid,
+                            "name" to name,
                             "email" to email,
-                            "role" to role,
-                            "uid" to user.uid
+                            "phone" to phone,
+                            "role" to "customer",
+                            "createdAt" to FieldValue.serverTimestamp()
                         )
+                        
                         db.collection("users").document(user.uid).set(userData)
                             .addOnSuccessListener {
                                 _isLoading.value = false
                                 _currentUser.value = user
-                                _userRole.value = role
+                                _userRole.value = "customer"
                                 onSuccess()
                             }
-                            .addOnFailureListener {
+                            .addOnFailureListener { e ->
                                 _isLoading.value = false
-                                _errorMessage.value = "Gagal menyimpan data user"
+                                // Menghapus user auth jika firestore gagal agar bisa re-register
+                                user.delete()
+                                _errorMessage.value = "Firestore Error: ${e.localizedMessage}"
                             }
                     }
                 } else {
