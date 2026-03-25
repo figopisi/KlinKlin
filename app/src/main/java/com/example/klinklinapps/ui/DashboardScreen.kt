@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,6 +13,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,19 +27,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.klinklinapps.R
 import com.example.klinklinapps.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.yield
+import kotlin.math.absoluteValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,6 +179,11 @@ fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenS
             }
         }
 
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        // Iklan Promo Slider
+        PromoCarousel()
+
         Spacer(modifier = Modifier.height(16.dp))
         SubscriptionCard(onClick = onOpenSubscription)
 
@@ -211,8 +228,163 @@ fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenS
 }
 
 @Composable
+fun PromoCarousel() {
+    val pagerState = rememberPagerState(pageCount = { 3 })
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            yield()
+            delay(5000)
+            val nextPage = (pagerState.currentPage + 1) % pagerState.pageCount
+            pagerState.animateScrollToPage(nextPage)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(160.dp),
+            contentPadding = PaddingValues(horizontal = 32.dp),
+            pageSpacing = 16.dp
+        ) { page ->
+            // Animation for scaling the active page
+            val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+            val scale = 1f - (pageOffset.absoluteValue * 0.15f).coerceIn(0f, 0.15f)
+            
+            // Subtle, senada, professional gradients - Differentiated light tints
+            val gradient = when(page) {
+                0 -> Brush.linearGradient(listOf(BrandBlueLight, White))
+                1 -> Brush.linearGradient(listOf(White, Color(0xFFE1F5FE))) // Soft Sky Blue
+                else -> Brush.linearGradient(listOf(Color(0xFFE0F2F1), White)) // Soft Mint/Aqua (faded)
+            }
+            
+            val textColor = BrandBlue
+
+            Card(
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .fillMaxSize()
+                    .shadow(8.dp, RoundedCornerShape(28.dp)),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            ) {
+                Box(modifier = Modifier.fillMaxSize().background(gradient)) {
+                    // Subtle Pattern / Logo Background
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_klinklin),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(160.dp)
+                            .offset(x = 30.dp, y = 30.dp)
+                            .rotate(-15f)
+                            .alpha(0.05f),
+                        contentScale = ContentScale.Fit
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            // Badge with theme-consistent styling
+                            Surface(
+                                color = BrandBlue.copy(alpha = 0.1f),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = when(page) {
+                                        0 -> "PENAWARAN KHUSUS"
+                                        1 -> "PROMO MINGGU INI"
+                                        else -> "INFO TERKINI"
+                                    },
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = BrandBlue,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    letterSpacing = 1.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = when(page) {
+                                    0 -> "Cuci 5kg,\nBayar 4kg!"
+                                    1 -> "KlinKlin Plus\nHemat 30%"
+                                    else -> "Gratis Ongkir\nSe-Denpasar"
+                                },
+                                color = textColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 22.sp,
+                                lineHeight = 28.sp
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            
+                            // Cleaner text-only CTA (No box)
+                            Text(
+                                text = "Lihat selengkapnya >",
+                                color = BrandBlue.copy(alpha = 0.7f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        
+                        // Icon Illustration (Soft Blue Tints)
+                        Box(
+                            modifier = Modifier.size(80.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Subtle circular glow
+                            Box(modifier = Modifier.fillMaxSize().background(BrandBlue.copy(alpha = 0.05f), CircleShape))
+                            
+                            Icon(
+                                imageVector = when(page) {
+                                    0 -> Icons.Default.LocalLaundryService
+                                    1 -> Icons.Default.WorkspacePremium
+                                    else -> Icons.Default.LocalShipping
+                                },
+                                contentDescription = null,
+                                tint = BrandBlue.copy(alpha = 0.7f),
+                                modifier = Modifier.size(44.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Custom Dot Indicator (Soft Blue based)
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            repeat(pagerState.pageCount) { iteration ->
+                val isSelected = pagerState.currentPage == iteration
+                val width by animateDpAsState(targetValue = if (isSelected) 24.dp else 8.dp, label = "")
+                val color = if (isSelected) BrandBlue else BrandBlue.copy(alpha = 0.15f)
+                
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .size(width = width, height = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun SectionHeader(title: String) {
-    Text(title, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = BrandBlue, modifier = Modifier.padding(16.dp))
+    Text(title, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = BrandBlue, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp))
 }
 
 @Composable
@@ -281,24 +453,11 @@ fun ActionItem(icon: ImageVector, label: String, onClick: () -> Unit) {
 
 @Composable
 fun KlinKlinLogoIcon() {
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(38.dp)) {
-        Surface(
-            modifier = Modifier.size(32.dp).offset(y = 6.dp),
-            shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 10.dp, bottomEnd = 10.dp),
-            color = BrandBlue
-        ) {}
-        Surface(
-            modifier = Modifier.size(24.dp).offset(y = (-6).dp),
-            shape = CircleShape,
-            color = BrandBlue,
-            border = androidx.compose.foundation.BorderStroke(2.dp, White)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Surface(modifier = Modifier.size(8.dp), shape = CircleShape, color = White) {}
-            }
-        }
-        Box(modifier = Modifier.size(12.dp, 8.dp).offset(y = 2.dp).clip(RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp)).background(White))
-    }
+    Image(
+        painter = painterResource(id = R.drawable.logo_klinklin),
+        contentDescription = "Logo",
+        modifier = Modifier.size(32.dp)
+    )
 }
 
 @Composable fun PromoScreen() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No Promos") } }
