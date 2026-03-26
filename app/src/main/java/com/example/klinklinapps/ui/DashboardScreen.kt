@@ -54,6 +54,11 @@ import kotlin.math.absoluteValue
 @Composable
 fun DashboardScreen(
     userName: String,
+    userEmail: String,
+    userPhone: String,
+    userAddress: String,
+    isSubscribed: Boolean,
+    subscriptionPackage: String?,
     balance: Int,
     hasActiveOrder: Boolean,
     onPlaceOrder: () -> Unit, 
@@ -66,37 +71,33 @@ fun DashboardScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = { 
-                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:08123456789"))
-                        context.startActivity(intent)
-                    }) {
-                        Surface(shape = CircleShape, color = BrandBlueLight, modifier = Modifier.size(36.dp)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.SupportAgent, contentDescription = "CS", tint = BrandBlue, modifier = Modifier.size(20.dp))
+            if (selectedTab != 4) { // Only show TopBar if not on Profile page
+                CenterAlignedTopAppBar(
+                    navigationIcon = {
+                        IconButton(onClick = { 
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:08123456789"))
+                            context.startActivity(intent)
+                        }) {
+                            Surface(shape = CircleShape, color = BrandBlueLight, modifier = Modifier.size(36.dp)) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.SupportAgent, contentDescription = "CS", tint = BrandBlue, modifier = Modifier.size(20.dp))
+                                }
                             }
                         }
-                    }
-                },
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        KlinKlinLogoIcon()
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("klinklin", fontSize = 22.sp, fontWeight = FontWeight.Black, color = BrandBlue, letterSpacing = (-1).sp)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onLogout) {
-                        Surface(shape = CircleShape, color = BrandBlueLight, modifier = Modifier.size(36.dp)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Logout, contentDescription = "Logout", tint = BrandBlue, modifier = Modifier.size(20.dp))
-                            }
+                    },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            KlinKlinLogoIcon()
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("klinklin", fontSize = 22.sp, fontWeight = FontWeight.Black, color = BrandBlue, letterSpacing = (-1).sp)
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
-            )
+                    },
+                    actions = {
+                        Spacer(modifier = Modifier.width(48.dp))
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
+                )
+            }
         },
         bottomBar = {
             NavigationBar(
@@ -104,8 +105,14 @@ fun DashboardScreen(
                 tonalElevation = 12.dp,
                 modifier = Modifier.clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
             ) {
-                val items = listOf("Home", "Promos", "Orders", "Chat")
-                val icons = listOf(Icons.Default.Home, Icons.Default.Percent, Icons.AutoMirrored.Filled.ReceiptLong, Icons.AutoMirrored.Filled.Chat)
+                val items = listOf("Home", "Promos", "Orders", "Chat", "Profile")
+                val icons = listOf(
+                    Icons.Default.Home, 
+                    Icons.Default.Percent, 
+                    Icons.AutoMirrored.Filled.ReceiptLong, 
+                    Icons.AutoMirrored.Filled.Chat,
+                    Icons.Default.Person
+                )
                 items.forEachIndexed { index, item ->
                     NavigationBarItem(
                         icon = { Icon(icons[index], contentDescription = item) },
@@ -124,6 +131,16 @@ fun DashboardScreen(
                 1 -> PromoScreen()
                 2 -> OrdersScreen(hasActiveOrder)
                 3 -> ChatScreen()
+                4 -> ProfileScreen(
+                    userName = userName,
+                    userEmail = userEmail,
+                    userPhone = userPhone,
+                    userAddress = userAddress,
+                    subscriptionType = if (isSubscribed) (subscriptionPackage ?: "Premium") else null,
+                    onBack = { selectedTab = 0 },
+                    onLogout = onLogout,
+                    onOpenSubscription = onOpenSubscription // Direct to SubscriptionScreen
+                )
             }
         }
     }
@@ -133,28 +150,13 @@ fun DashboardScreen(
 fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenSubscription: () -> Unit, onTopUp: () -> Unit) {
     val scrollState = rememberScrollState()
     Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = 32.dp)) {
-        // Welcome Header
         Column(modifier = Modifier.fillMaxWidth().background(White).padding(horizontal = 16.dp, vertical = 8.dp)) {
-            Text(
-                text = "Hi, $userName!",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Black,
-                color = Gray800
-            )
-            Text(
-                text = "Siap mencuci hari ini?",
-                fontSize = 14.sp,
-                color = Gray500
-            )
+            Text(text = "Hi, $userName!", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Gray800)
+            Text(text = "Siap mencuci hari ini?", fontSize = 14.sp, color = Gray500)
         }
 
-        // Balance Card
         Column(modifier = Modifier.fillMaxWidth().background(White).padding(16.dp)) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().shadow(12.dp, RoundedCornerShape(24.dp)),
-                shape = RoundedCornerShape(24.dp),
-                color = BrandBlue
-            ) {
+            Surface(modifier = Modifier.fillMaxWidth().shadow(12.dp, RoundedCornerShape(24.dp)), shape = RoundedCornerShape(24.dp), color = BrandBlue) {
                 Box(modifier = Modifier.background(DarkGradient)) {
                     Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
@@ -180,10 +182,7 @@ fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenS
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        
-        // Iklan Promo Slider
         PromoCarousel()
-
         Spacer(modifier = Modifier.height(16.dp))
         SubscriptionCard(onClick = onOpenSubscription)
 
@@ -243,114 +242,51 @@ fun PromoCarousel() {
     Column(modifier = Modifier.fillMaxWidth()) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp),
+            modifier = Modifier.fillMaxWidth().height(160.dp),
             contentPadding = PaddingValues(horizontal = 32.dp),
             pageSpacing = 16.dp
         ) { page ->
-            // Animation for scaling the active page
             val pageOffset = (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
             val scale = 1f - (pageOffset.absoluteValue * 0.15f).coerceIn(0f, 0.15f)
             
-            // Subtle, senada, professional gradients - Differentiated light tints
             val gradient = when(page) {
-                0 -> Brush.linearGradient(listOf(BrandBlueLight, White))
-                1 -> Brush.linearGradient(listOf(White, Color(0xFFE1F5FE))) // Soft Sky Blue
-                else -> Brush.linearGradient(listOf(Color(0xFFE0F2F1), White)) // Soft Mint/Aqua (faded)
+                0 -> Brush.linearGradient(listOf(Color(0xFFD1E3FF), Color(0xFFF0F7FF)))
+                1 -> Brush.linearGradient(listOf(Color(0xFFD0F0EE), Color(0xFFF1FBFA)))
+                else -> Brush.linearGradient(listOf(Color(0xFFDDE3F0), Color(0xFFF4F7FB)))
             }
             
-            val textColor = BrandBlue
+            val themeAccentColor = when(page) {
+                0 -> Color(0xFF4A90E2)
+                1 -> Color(0xFF26A69A)
+                else -> Color(0xFF5C6BC0)
+            }
 
             Card(
-                modifier = Modifier
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    }
-                    .fillMaxSize()
-                    .shadow(8.dp, RoundedCornerShape(28.dp)),
+                modifier = Modifier.graphicsLayer { scaleX = scale; scaleY = scale }.fillMaxSize().shadow(8.dp, RoundedCornerShape(28.dp)),
                 shape = RoundedCornerShape(28.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent)
             ) {
                 Box(modifier = Modifier.fillMaxSize().background(gradient)) {
-                    // Subtle Pattern / Logo Background
                     Image(
                         painter = painterResource(id = R.drawable.logo_klinklin),
                         contentDescription = null,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .size(160.dp)
-                            .offset(x = 30.dp, y = 30.dp)
-                            .rotate(-15f)
-                            .alpha(0.05f),
+                        modifier = Modifier.align(Alignment.BottomEnd).size(160.dp).offset(x = 30.dp, y = 30.dp).rotate(-15f).alpha(0.06f),
                         contentScale = ContentScale.Fit
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxSize().padding(24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxSize().padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(modifier = Modifier.weight(1f)) {
-                            // Badge with theme-consistent styling
-                            Surface(
-                                color = BrandBlue.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text(
-                                    text = when(page) {
-                                        0 -> "PENAWARAN KHUSUS"
-                                        1 -> "PROMO MINGGU INI"
-                                        else -> "INFO TERKINI"
-                                    },
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = BrandBlue,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    letterSpacing = 1.sp
-                                )
+                            Surface(color = themeAccentColor.copy(alpha = 0.12f), shape = RoundedCornerShape(12.dp)) {
+                                Text(text = when(page) { 0 -> "PENAWARAN KHUSUS"; 1 -> "PROMO MINGGU INI"; else -> "INFO TERKINI" }, fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = themeAccentColor, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), letterSpacing = 1.sp)
                             }
                             Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = when(page) {
-                                    0 -> "Cuci 5kg,\nBayar 4kg!"
-                                    1 -> "KlinKlin Plus\nHemat 30%"
-                                    else -> "Gratis Ongkir\nSe-Denpasar"
-                                },
-                                color = textColor,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 22.sp,
-                                lineHeight = 28.sp
-                            )
+                            Text(text = when(page) { 0 -> "Cuci 5kg,\nBayar 4kg!"; 1 -> "KlinKlin Plus\nHemat 30%"; else -> "Gratis Ongkir\nSe-Denpasar" }, color = themeAccentColor, fontWeight = FontWeight.Black, fontSize = 22.sp, lineHeight = 28.sp)
                             Spacer(modifier = Modifier.height(8.dp))
-                            
-                            // Cleaner text-only CTA (No box)
-                            Text(
-                                text = "Lihat selengkapnya >",
-                                color = BrandBlue.copy(alpha = 0.7f),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Text(text = "Lihat selengkapnya >", color = themeAccentColor.copy(alpha = 0.8f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
-                        
-                        // Icon Illustration (Soft Blue Tints)
-                        Box(
-                            modifier = Modifier.size(80.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            // Subtle circular glow
-                            Box(modifier = Modifier.fillMaxSize().background(BrandBlue.copy(alpha = 0.05f), CircleShape))
-                            
-                            Icon(
-                                imageVector = when(page) {
-                                    0 -> Icons.Default.LocalLaundryService
-                                    1 -> Icons.Default.WorkspacePremium
-                                    else -> Icons.Default.LocalShipping
-                                },
-                                contentDescription = null,
-                                tint = BrandBlue.copy(alpha = 0.7f),
-                                modifier = Modifier.size(44.dp)
-                            )
+                        Box(modifier = Modifier.size(80.dp), contentAlignment = Alignment.Center) {
+                            Box(modifier = Modifier.fillMaxSize().background(themeAccentColor.copy(alpha = 0.08f), CircleShape))
+                            Icon(imageVector = when(page) { 0 -> Icons.Default.LocalLaundryService; 1 -> Icons.Default.WorkspacePremium; else -> Icons.Default.LocalShipping }, contentDescription = null, tint = themeAccentColor.copy(alpha = 0.75f), modifier = Modifier.size(44.dp))
                         }
                     }
                 }
@@ -358,25 +294,11 @@ fun PromoCarousel() {
         }
         
         Spacer(modifier = Modifier.height(16.dp))
-        
-        // Custom Dot Indicator (Soft Blue based)
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             repeat(pagerState.pageCount) { iteration ->
                 val isSelected = pagerState.currentPage == iteration
                 val width by animateDpAsState(targetValue = if (isSelected) 24.dp else 8.dp, label = "")
-                val color = if (isSelected) BrandBlue else BrandBlue.copy(alpha = 0.15f)
-                
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .size(width = width, height = 6.dp)
-                )
+                Box(modifier = Modifier.padding(horizontal = 4.dp).clip(CircleShape).background(if (isSelected) BrandBlue else BrandBlue.copy(alpha = 0.15f)).size(width = width, height = 6.dp))
             }
         }
     }
@@ -453,11 +375,7 @@ fun ActionItem(icon: ImageVector, label: String, onClick: () -> Unit) {
 
 @Composable
 fun KlinKlinLogoIcon() {
-    Image(
-        painter = painterResource(id = R.drawable.logo_klinklin),
-        contentDescription = "Logo",
-        modifier = Modifier.size(32.dp)
-    )
+    Image(painter = painterResource(id = R.drawable.logo_klinklin), contentDescription = "Logo", modifier = Modifier.size(32.dp))
 }
 
 @Composable fun PromoScreen() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No Promos") } }
@@ -466,13 +384,8 @@ fun KlinKlinLogoIcon() {
     Column(Modifier.fillMaxSize().background(Gray100).padding(16.dp)) {
         Text("Pesanan Saya", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Gray800)
         Spacer(modifier = Modifier.height(16.dp))
-        
         if (hasActiveOrder) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = White)
-            ) {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = White)) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp), color = BrandBlueLight) {
@@ -487,9 +400,7 @@ fun KlinKlinLogoIcon() {
                             Text("DIPROSES", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = BrandBlue, fontSize = 10.sp, fontWeight = FontWeight.Black)
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = Gray100)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp)); HorizontalDivider(color = Gray100); Spacer(modifier = Modifier.height(16.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Schedule, null, tint = SunYellow, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
@@ -498,9 +409,7 @@ fun KlinKlinLogoIcon() {
                 }
             }
         } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Belum ada riwayat pesanan", color = Gray500)
-            }
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Belum ada riwayat pesanan", color = Gray500) }
         }
     }
 }

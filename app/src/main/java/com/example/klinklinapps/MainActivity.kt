@@ -39,6 +39,8 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 
+                val userEmail = currentUser?.email ?: ""
+                
                 // Determine initial screen based on auth state
                 var currentScreen by remember { 
                     mutableStateOf(if (currentUser != null) "dashboard" else "welcome") 
@@ -52,9 +54,14 @@ class MainActivity : ComponentActivity() {
                 }
                 
                 var isSubscribed by remember { mutableStateOf(false) }
+                var subscriptionPackage by remember { mutableStateOf<String?>(null) }
                 var balance by remember { mutableIntStateOf(150000) }
                 var hasActiveOrder by remember { mutableStateOf(false) }
                 var selectedTopUpMethod by remember { mutableStateOf<TopUpMethod?>(null) }
+                
+                // Placeholder user data
+                val userPhone = "08123456789"
+                val userAddress = "Jl. Sudirman No. 123, Denpasar, Bali"
 
                 when (currentScreen) {
                     "welcome" -> WelcomeScreen(
@@ -90,6 +97,11 @@ class MainActivity : ComponentActivity() {
                                 )
                                 else -> DashboardScreen(
                                     userName = userName,
+                                    userEmail = userEmail,
+                                    userPhone = userPhone,
+                                    userAddress = userAddress,
+                                    isSubscribed = isSubscribed,
+                                    subscriptionPackage = subscriptionPackage,
                                     balance = balance,
                                     hasActiveOrder = hasActiveOrder,
                                     onPlaceOrder = { currentScreen = "laundry_selection" },
@@ -119,6 +131,7 @@ class MainActivity : ComponentActivity() {
                         onBack = { currentScreen = "dashboard" },
                         onSubscribeSuccess = { 
                             isSubscribed = true
+                            subscriptionPackage = "Bulanan Plus+"
                             currentScreen = "dashboard"
                         }
                     )
