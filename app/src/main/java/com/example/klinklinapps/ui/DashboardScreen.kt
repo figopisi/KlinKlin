@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.klinklinapps.R
 import com.example.klinklinapps.data.Order
+import com.example.klinklinapps.data.ReminderInfo
 import com.example.klinklinapps.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.yield
@@ -62,14 +63,18 @@ fun DashboardScreen(
     balance: Int,
     hasActiveOrder: Boolean,
     ordersViewModel: OrdersViewModel,
+    chatViewModel: ChatViewModel,
     onPlaceOrder: () -> Unit, 
     onOpenSubscription: () -> Unit,
     onTopUp: () -> Unit,
+    onOpenPlanner: () -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedOrder by remember { mutableStateOf<Order?>(null) }
     val context = LocalContext.current
+    
+    val reminder by ordersViewModel.reminder
 
     if (selectedOrder != null) {
         OrderDetailScreen(
@@ -108,7 +113,9 @@ fun DashboardScreen(
                             }
                         },
                         actions = {
-                            Spacer(modifier = Modifier.width(48.dp))
+                            IconButton(onClick = onOpenPlanner) {
+                                Icon(Icons.Default.CalendarToday, contentDescription = "Planner", tint = BrandBlue)
+                            }
                         },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
                     )
@@ -142,12 +149,21 @@ fun DashboardScreen(
         ) { paddingValues ->
             Box(modifier = Modifier.padding(paddingValues).fillMaxSize().background(Gray100)) {
                 when (selectedTab) {
-                    0 -> HomeScreen(userName, balance, onPlaceOrder, onOpenSubscription, onTopUp)
+                    0 -> HomeScreen(
+                        userName = userName, 
+                        balance = balance, 
+                        reminder = reminder,
+                        onDismissReminder = { ordersViewModel.dismissReminder() },
+                        onPlaceOrder = onPlaceOrder, 
+                        onOpenSubscription = onOpenSubscription, 
+                        onTopUp = onTopUp,
+                        onOpenPlanner = onOpenPlanner
+                    )
                     1 -> PromoScreen()
                     2 -> OrdersScreen(ordersViewModel) { order ->
                         selectedOrder = order
                     }
-                    3 -> ChatScreen()
+                    3 -> ChatScreen(chatViewModel)
                     4 -> ProfileScreen(
                         userName = userName,
                         userEmail = userEmail,
@@ -165,12 +181,32 @@ fun DashboardScreen(
 }
 
 @Composable
-fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenSubscription: () -> Unit, onTopUp: () -> Unit) {
+fun HomeScreen(
+    userName: String, 
+    balance: Int, 
+    reminder: ReminderInfo?,
+    onDismissReminder: () -> Unit,
+    onPlaceOrder: () -> Unit, 
+    onOpenSubscription: () -> Unit, 
+    onTopUp: () -> Unit,
+    onOpenPlanner: () -> Unit
+) {
     val scrollState = rememberScrollState()
     Column(modifier = Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = 32.dp)) {
         Column(modifier = Modifier.fillMaxWidth().background(White).padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(text = "Hi, $userName!", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Gray800)
             Text(text = "Siap mencuci hari ini?", fontSize = 14.sp, color = Gray500)
+        }
+
+        // Cycle-Based Reminder Card
+        AnimatedVisibility(
+            visible = reminder != null,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
+        ) {
+            reminder?.let {
+                CycleReminderCard(it.message, onDismissReminder, onPlaceOrder)
+            }
         }
 
         Column(modifier = Modifier.fillMaxWidth().background(White).padding(16.dp)) {
@@ -196,6 +232,28 @@ fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenS
                         }
                     }
                 }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // Smart Planner Entry Card
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).clickable { onOpenPlanner() },
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(48.dp).background(BrandBlueLight, CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = BrandBlue)
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Smart Planner", fontWeight = FontWeight.Black, fontSize = 16.sp, color = Gray800)
+                    Text("Hitung kapan baju harus dikirim agar siap tepat waktu", fontSize = 12.sp, color = Gray500)
+                }
+                Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Gray500)
             }
         }
 
@@ -240,6 +298,64 @@ fun HomeScreen(userName: String, balance: Int, onPlaceOrder: () -> Unit, onOpenS
         Column(modifier = Modifier.padding(horizontal = 16.dp)) {
             AddOnItem("Scent Booster", "Wangi 7 hari", "Rp 5.000", Icons.Default.AutoAwesome)
             AddOnItem("Insurance", "Proteksi 10x lipat", "Rp 2.000", Icons.Default.VerifiedUser)
+        }
+    }
+}
+
+@Composable
+fun CycleReminderCard(message: String, onDismiss: () -> Unit, onOrder: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = BrandBlueLight.copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(BrandBlue, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.NotificationsActive, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "KlinKlin Insight",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 12.sp,
+                    color = BrandBlue
+                )
+                Text(
+                    text = message,
+                    fontSize = 13.sp,
+                    color = Gray800,
+                    lineHeight = 18.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row {
+                    Text(
+                        text = "Pesan Sekarang",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = BrandBlue,
+                        modifier = Modifier.clickable { onOrder() }
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = "Nanti Saja",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Gray500,
+                        modifier = Modifier.clickable { onDismiss() }
+                    )
+                }
+            }
         }
     }
 }
@@ -397,7 +513,6 @@ fun KlinKlinLogoIcon() {
 }
 
 @Composable fun PromoScreen() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No Promos") } }
-@Composable fun ChatScreen() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Chat Soon") } }
 
 @Composable fun OrdersScreen(viewModel: OrdersViewModel, onOrderClick: (Order) -> Unit) { 
     val orders by viewModel.orders

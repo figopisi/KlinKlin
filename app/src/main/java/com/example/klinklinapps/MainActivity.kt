@@ -1,10 +1,14 @@
 package com.example.klinklinapps
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,16 +17,31 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
 import com.example.klinklinapps.ui.*
 import com.example.klinklinapps.ui.theme.KlinKlinAppsTheme
 
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
     private val ordersViewModel: OrdersViewModel by viewModels()
+    private val laundryPlanViewModel: LaundryPlanViewModel by viewModels()
+    private val chatViewModel: ChatViewModel by viewModels()
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (!isGranted) {
+            Toast.makeText(this, "Izin notifikasi ditolak. Anda tidak akan menerima pengingat laundry.", Toast.LENGTH_LONG).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Meminta izin notifikasi untuk Android 13+
+        askNotificationPermission()
+
         setContent {
             KlinKlinAppsTheme {
                 val context = LocalContext.current
@@ -53,8 +72,10 @@ class MainActivity : ComponentActivity() {
                     if (currentUser == null) {
                         currentScreen = "welcome"
                     } else {
-                        // Refresh orders when user is detected
+                        // Refresh data when user is detected
                         ordersViewModel.listenToOrders()
+                        laundryPlanViewModel.loadPlans()
+                        chatViewModel.listenToMessages()
                     }
                 }
                 
@@ -108,14 +129,20 @@ class MainActivity : ComponentActivity() {
                                     balance = balance.toInt(),
                                     hasActiveOrder = hasActiveOrder,
                                     ordersViewModel = ordersViewModel,
+                                    chatViewModel = chatViewModel,
                                     onPlaceOrder = { currentScreen = "laundry_selection" },
                                     onOpenSubscription = { currentScreen = "subscription" },
                                     onTopUp = { currentScreen = "top_up" },
+                                    onOpenPlanner = { currentScreen = "laundry_planner" },
                                     onLogout = { authViewModel.logout() }
                                 )
                             }
                         }
                     }
+                    "laundry_planner" -> LaundryPlannerScreen(
+                        viewModel = laundryPlanViewModel,
+                        onBack = { currentScreen = "dashboard" }
+                    )
                     "laundry_selection" -> LaundrySelectionScreen(
                         onBack = { currentScreen = "dashboard" },
                         onShopSelected = { currentScreen = "order_input" }
@@ -157,7 +184,7 @@ class MainActivity : ComponentActivity() {
                                 onBack = { currentScreen = "top_up" },
                                 onConfirm = { amount ->
                                     authViewModel.topUp(amount.toLong()) {
-                                        Toast.makeText(context, "Top Up Berhasil! Saldo bertambah Rp $amount", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, "Top Up Berhasil!", Toast.LENGTH_LONG).show()
                                         currentScreen = "dashboard"
                                     }
                                 }
@@ -165,6 +192,16 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun askNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
     }

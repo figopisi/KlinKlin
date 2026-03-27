@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.klinklinapps.data.Order
 import com.example.klinklinapps.data.OrderRepository
+import com.example.klinklinapps.data.ReminderInfo
+import com.example.klinklinapps.data.ReminderService
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FieldValue
@@ -21,10 +23,14 @@ class OrdersViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
     private val auth = Firebase.auth
     private val repository = OrderRepository()
+    private val reminderService = ReminderService()
     private var ordersListener: ListenerRegistration? = null
 
     private val _orders = mutableStateOf<List<Order>>(emptyList())
     val orders: State<List<Order>> = _orders
+
+    private val _reminder = mutableStateOf<ReminderInfo?>(null)
+    val reminder: State<ReminderInfo?> = _reminder
 
     private val _isProcessing = mutableStateOf(false)
     val isProcessing: State<Boolean> = _isProcessing
@@ -73,8 +79,17 @@ class OrdersViewModel : ViewModel() {
                         }
                     }
                     _orders.value = ordersList.sortedByDescending { it.createdAt?.seconds ?: Long.MAX_VALUE }
+                    
+                    // Trigger reminder check when orders are loaded
+                    checkReminders(user.uid)
                 }
             }
+    }
+
+    private fun checkReminders(uid: String) {
+        viewModelScope.launch {
+            _reminder.value = reminderService.checkLaundryCycle(uid)
+        }
     }
 
     fun placeOrder(
@@ -157,6 +172,10 @@ class OrdersViewModel : ViewModel() {
                 _errorMessage.value = result.exceptionOrNull()?.localizedMessage ?: "Gagal menyelesaikan pesanan"
             }
         }
+    }
+
+    fun dismissReminder() {
+        _reminder.value = null
     }
 
     fun clearError() {
