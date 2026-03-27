@@ -18,6 +18,7 @@ import com.example.klinklinapps.ui.theme.KlinKlinAppsTheme
 
 class MainActivity : ComponentActivity() {
     private val authViewModel: AuthViewModel by viewModels()
+    private val ordersViewModel: OrdersViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
                 val currentUser by authViewModel.currentUser
                 val userRole by authViewModel.userRole
                 val isLoading by authViewModel.isLoading
+                val balance by authViewModel.balance
                 
                 // Get user name from email or display name (handling empty strings)
                 val userName = remember(currentUser) {
@@ -50,16 +52,18 @@ class MainActivity : ComponentActivity() {
                 LaunchedEffect(currentUser) {
                     if (currentUser == null) {
                         currentScreen = "welcome"
+                    } else {
+                        // Refresh orders when user is detected
+                        ordersViewModel.listenToOrders()
                     }
                 }
                 
                 var isSubscribed by remember { mutableStateOf(false) }
                 var subscriptionPackage by remember { mutableStateOf<String?>(null) }
-                var balance by remember { mutableIntStateOf(150000) }
                 var hasActiveOrder by remember { mutableStateOf(false) }
                 var selectedTopUpMethod by remember { mutableStateOf<TopUpMethod?>(null) }
                 
-                // Placeholder user data
+                // Placeholder user data - in production this would come from Firestore
                 val userPhone = "08123456789"
                 val userAddress = "Jl. Sudirman No. 123, Denpasar, Bali"
 
@@ -80,7 +84,6 @@ class MainActivity : ComponentActivity() {
                     )
                     "dashboard" -> {
                         if (isLoading && userRole == null) {
-                            // Show loading while fetching role
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 CircularProgressIndicator()
                             }
@@ -102,8 +105,9 @@ class MainActivity : ComponentActivity() {
                                     userAddress = userAddress,
                                     isSubscribed = isSubscribed,
                                     subscriptionPackage = subscriptionPackage,
-                                    balance = balance,
+                                    balance = balance.toInt(),
                                     hasActiveOrder = hasActiveOrder,
+                                    ordersViewModel = ordersViewModel,
                                     onPlaceOrder = { currentScreen = "laundry_selection" },
                                     onOpenSubscription = { currentScreen = "subscription" },
                                     onTopUp = { currentScreen = "top_up" },
@@ -117,7 +121,11 @@ class MainActivity : ComponentActivity() {
                         onShopSelected = { currentScreen = "order_input" }
                     )
                     "order_input" -> OrderInputScreen(
+                        userName = userName,
+                        userPhone = userPhone,
+                        userAddress = userAddress,
                         isSubscribed = isSubscribed,
+                        ordersViewModel = ordersViewModel,
                         onBack = { currentScreen = "laundry_selection" },
                         onConfirmOrder = { currentScreen = "order_processing" }
                     )
@@ -148,9 +156,10 @@ class MainActivity : ComponentActivity() {
                                 method = method,
                                 onBack = { currentScreen = "top_up" },
                                 onConfirm = { amount ->
-                                    balance += amount
-                                    Toast.makeText(context, "Top Up Berhasil! Saldo bertambah Rp $amount", Toast.LENGTH_LONG).show()
-                                    currentScreen = "dashboard"
+                                    authViewModel.topUp(amount.toLong()) {
+                                        Toast.makeText(context, "Top Up Berhasil! Saldo bertambah Rp $amount", Toast.LENGTH_LONG).show()
+                                        currentScreen = "dashboard"
+                                    }
                                 }
                             )
                         }

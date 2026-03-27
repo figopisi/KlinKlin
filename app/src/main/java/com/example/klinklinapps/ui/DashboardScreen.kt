@@ -41,10 +41,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.klinklinapps.R
+import com.example.klinklinapps.data.Order
 import com.example.klinklinapps.ui.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.yield
@@ -61,86 +61,104 @@ fun DashboardScreen(
     subscriptionPackage: String?,
     balance: Int,
     hasActiveOrder: Boolean,
+    ordersViewModel: OrdersViewModel,
     onPlaceOrder: () -> Unit, 
     onOpenSubscription: () -> Unit,
     onTopUp: () -> Unit,
     onLogout: () -> Unit
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedOrder by remember { mutableStateOf<Order?>(null) }
     val context = LocalContext.current
 
-    Scaffold(
-        topBar = {
-            if (selectedTab != 4) { // Only show TopBar if not on Profile page
-                CenterAlignedTopAppBar(
-                    navigationIcon = {
-                        IconButton(onClick = { 
-                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:08123456789"))
-                            context.startActivity(intent)
-                        }) {
-                            Surface(shape = CircleShape, color = BrandBlueLight, modifier = Modifier.size(36.dp)) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.SupportAgent, contentDescription = "CS", tint = BrandBlue, modifier = Modifier.size(20.dp))
-                                }
-                            }
-                        }
-                    },
-                    title = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            KlinKlinLogoIcon()
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("klinklin", fontSize = 22.sp, fontWeight = FontWeight.Black, color = BrandBlue, letterSpacing = (-1).sp)
-                        }
-                    },
-                    actions = {
-                        Spacer(modifier = Modifier.width(48.dp))
-                    },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
-                )
-            }
-        },
-        bottomBar = {
-            NavigationBar(
-                containerColor = White,
-                tonalElevation = 12.dp,
-                modifier = Modifier.clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
-            ) {
-                val items = listOf("Home", "Promos", "Orders", "Chat", "Profile")
-                val icons = listOf(
-                    Icons.Default.Home, 
-                    Icons.Default.Percent, 
-                    Icons.AutoMirrored.Filled.ReceiptLong, 
-                    Icons.AutoMirrored.Filled.Chat,
-                    Icons.Default.Person
-                )
-                items.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        icon = { Icon(icons[index], contentDescription = item) },
-                        label = { Text(item, fontWeight = FontWeight.Bold) },
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = BrandBlue, selectedTextColor = BrandBlue, indicatorColor = BrandBlueLight)
-                    )
+    if (selectedOrder != null) {
+        OrderDetailScreen(
+            order = selectedOrder!!,
+            onBack = { selectedOrder = null },
+            onFinishOrder = {
+                selectedOrder?.let { order ->
+                    ordersViewModel.completeOrder(order.id) {
+                        selectedOrder = null
+                    }
                 }
             }
-        }
-    ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues).fillMaxSize().background(Gray100)) {
-            when (selectedTab) {
-                0 -> HomeScreen(userName, balance, onPlaceOrder, onOpenSubscription, onTopUp)
-                1 -> PromoScreen()
-                2 -> OrdersScreen(hasActiveOrder)
-                3 -> ChatScreen()
-                4 -> ProfileScreen(
-                    userName = userName,
-                    userEmail = userEmail,
-                    userPhone = userPhone,
-                    userAddress = userAddress,
-                    subscriptionType = if (isSubscribed) (subscriptionPackage ?: "Premium") else null,
-                    onBack = { selectedTab = 0 },
-                    onLogout = onLogout,
-                    onOpenSubscription = onOpenSubscription // Direct to SubscriptionScreen
-                )
+        )
+    } else {
+        Scaffold(
+            topBar = {
+                if (selectedTab != 4) {
+                    CenterAlignedTopAppBar(
+                        navigationIcon = {
+                            IconButton(onClick = { 
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:08123456789"))
+                                context.startActivity(intent)
+                            }) {
+                                Surface(shape = CircleShape, color = BrandBlueLight, modifier = Modifier.size(36.dp)) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Default.SupportAgent, contentDescription = "CS", tint = BrandBlue, modifier = Modifier.size(20.dp))
+                                    }
+                                }
+                            }
+                        },
+                        title = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                KlinKlinLogoIcon()
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("klinklin", fontSize = 22.sp, fontWeight = FontWeight.Black, color = BrandBlue, letterSpacing = (-1).sp)
+                            }
+                        },
+                        actions = {
+                            Spacer(modifier = Modifier.width(48.dp))
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = White)
+                    )
+                }
+            },
+            bottomBar = {
+                NavigationBar(
+                    containerColor = White,
+                    tonalElevation = 12.dp,
+                    modifier = Modifier.clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                ) {
+                    val items = listOf("Home", "Promos", "Orders", "Chat", "Profile")
+                    val icons = listOf(
+                        Icons.Default.Home, 
+                        Icons.Default.Percent, 
+                        Icons.AutoMirrored.Filled.ReceiptLong, 
+                        Icons.AutoMirrored.Filled.Chat,
+                        Icons.Default.Person
+                    )
+                    items.forEachIndexed { index, item ->
+                        NavigationBarItem(
+                            icon = { Icon(icons[index], contentDescription = item) },
+                            label = { Text(item, fontWeight = FontWeight.Bold) },
+                            selected = selectedTab == index,
+                            onClick = { selectedTab = index },
+                            colors = NavigationBarItemDefaults.colors(selectedIconColor = BrandBlue, selectedTextColor = BrandBlue, indicatorColor = BrandBlueLight)
+                        )
+                    }
+                }
+            }
+        ) { paddingValues ->
+            Box(modifier = Modifier.padding(paddingValues).fillMaxSize().background(Gray100)) {
+                when (selectedTab) {
+                    0 -> HomeScreen(userName, balance, onPlaceOrder, onOpenSubscription, onTopUp)
+                    1 -> PromoScreen()
+                    2 -> OrdersScreen(ordersViewModel) { order ->
+                        selectedOrder = order
+                    }
+                    3 -> ChatScreen()
+                    4 -> ProfileScreen(
+                        userName = userName,
+                        userEmail = userEmail,
+                        userPhone = userPhone,
+                        userAddress = userAddress,
+                        subscriptionType = if (isSubscribed) (subscriptionPackage ?: "Premium") else null,
+                        onBack = { selectedTab = 0 },
+                        onLogout = onLogout,
+                        onOpenSubscription = onOpenSubscription
+                    )
+                }
             }
         }
     }
@@ -380,36 +398,104 @@ fun KlinKlinLogoIcon() {
 
 @Composable fun PromoScreen() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No Promos") } }
 @Composable fun ChatScreen() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Chat Soon") } }
-@Composable fun OrdersScreen(hasActiveOrder: Boolean) { 
+
+@Composable fun OrdersScreen(viewModel: OrdersViewModel, onOrderClick: (Order) -> Unit) { 
+    val orders by viewModel.orders
+    
     Column(Modifier.fillMaxSize().background(Gray100).padding(16.dp)) {
         Text("Pesanan Saya", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Gray800)
         Spacer(modifier = Modifier.height(16.dp))
-        if (hasActiveOrder) {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = White)) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp), color = BrandBlueLight) {
-                            Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalLaundryService, null, tint = BrandBlue) }
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Order #KK-99281", fontWeight = FontWeight.Black, fontSize = 16.sp)
-                            Text("Wash & Fold • 5 kg", fontSize = 12.sp, color = Gray500)
-                        }
-                        Surface(color = BrandBlueLight, shape = RoundedCornerShape(8.dp)) {
-                            Text("DIPROSES", modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), color = BrandBlue, fontSize = 10.sp, fontWeight = FontWeight.Black)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp)); HorizontalDivider(color = Gray100); Spacer(modifier = Modifier.height(16.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Schedule, null, tint = SunYellow, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Estimasi Selesai: Hari ini, 18:00", fontSize = 12.sp, color = Gray800, fontWeight = FontWeight.Bold)
+        
+        if (orders.isNotEmpty()) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 80.dp)
+            ) {
+                items(orders) { order ->
+                    CustomerOrderCard(order = order) {
+                        onOrderClick(order)
                     }
                 }
             }
         } else {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("Belum ada riwayat pesanan", color = Gray500) }
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.Inbox, contentDescription = null, modifier = Modifier.size(64.dp), tint = Gray500)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Belum ada riwayat pesanan", color = Gray500)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CustomerOrderCard(order: Order, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(modifier = Modifier.size(48.dp), shape = RoundedCornerShape(12.dp), color = BrandBlueLight) {
+                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.LocalLaundryService, null, tint = BrandBlue) }
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Order #${order.id.takeLast(5).uppercase()}", fontWeight = FontWeight.Black, fontSize = 16.sp)
+                    Text("Layanan Laundry • Rp ${if(order.totalPrice > 0) order.totalPrice else "..."}", fontSize = 12.sp, color = Gray500)
+                }
+                Surface(
+                    color = when(order.status) {
+                        "SELESAI" -> Color(0xFFE8F5E9)
+                        "MENUNGGU_PICKUP" -> BrandBlueLight
+                        else -> SunYellow.copy(alpha = 0.2f)
+                    }, 
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = order.status.replace("_", " "), 
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), 
+                        color = when(order.status) {
+                            "SELESAI" -> Color(0xFF2E7D32)
+                            "MENUNGGU_PICKUP" -> BrandBlue
+                            else -> Color(0xFFFFA000)
+                        }, 
+                        fontSize = 10.sp, 
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = Gray100)
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (order.status == "SELESAI") Icons.Default.CheckCircle else Icons.Default.Schedule, 
+                    null, 
+                    tint = if (order.status == "SELESAI") Color(0xFF2E7D32) else SunYellow, 
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                val statusText = when(order.status) {
+                    "SELESAI" -> "Pesanan Selesai"
+                    "MENUNGGU_PICKUP" -> "Menunggu Kurir Datang"
+                    "DITIMBANG" -> "Sedang Ditimbang Laundry"
+                    "DIPROSES" -> "Laundry Sedang Dicuci"
+                    "SIAP_DIANTAR" -> "Menunggu Kurir Mengantar"
+                    "DRIVER_MENGANTAR" -> "Kurir Sedang Menuju Rumah Anda"
+                    else -> "Status: ${order.status.replace("_", " ")}"
+                }
+                Text(
+                    text = statusText,
+                    fontSize = 12.sp, 
+                    color = Gray800, 
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
