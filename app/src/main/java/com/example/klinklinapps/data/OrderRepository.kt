@@ -21,7 +21,15 @@ data class Order(
     val customerName: String = "",
     val driverName: String = "",
     val driverPhone: String = "",
-    val createdAt: Timestamp? = null
+    val createdAt: Timestamp? = null,
+    
+    // Field untuk Tracking Real-time
+    val customerLat: Double = 0.0,
+    val customerLng: Double = 0.0,
+    val laundryLat: Double = 0.0,
+    val laundryLng: Double = 0.0,
+    val driverLat: Double = 0.0,
+    val driverLng: Double = 0.0
 )
 
 class OrderRepository {

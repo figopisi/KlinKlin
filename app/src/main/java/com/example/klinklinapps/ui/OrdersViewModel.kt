@@ -72,7 +72,15 @@ class OrdersViewModel : ViewModel() {
                                 customerName = doc.getString("customerName") ?: "Customer",
                                 driverName = doc.getString("driverName") ?: "",
                                 driverPhone = doc.getString("driverPhone") ?: "",
-                                createdAt = doc.getTimestamp("createdAt")
+                                createdAt = doc.getTimestamp("createdAt"),
+                                
+                                // Mapping Field Tracking Baru
+                                customerLat = doc.getDouble("customerLat") ?: 0.0,
+                                customerLng = doc.getDouble("customerLng") ?: 0.0,
+                                laundryLat = doc.getDouble("laundryLat") ?: 0.0,
+                                laundryLng = doc.getDouble("laundryLng") ?: 0.0,
+                                driverLat = doc.getDouble("driverLat") ?: 0.0,
+                                driverLng = doc.getDouble("driverLng") ?: 0.0
                             )
                         } catch (ex: Exception) {
                             null
@@ -141,7 +149,13 @@ class OrdersViewModel : ViewModel() {
                         "laundrySubtotal" to 0L,
                         "totalPrice" to 0L,
                         "weight" to 0.0,
-                        "createdAt" to FieldValue.serverTimestamp()
+                        "createdAt" to FieldValue.serverTimestamp(),
+                        
+                        // Default Coordinates (Simulasi: Sebaiknya dapet dari FusedLocation)
+                        "customerLat" to -6.2088, 
+                        "customerLng" to 106.8456,
+                        "laundryLat" to -6.2100,
+                        "laundryLng" to 106.8500
                     )
                     transaction.set(db.collection("orders").document(orderId), newOrder)
                 }.await()

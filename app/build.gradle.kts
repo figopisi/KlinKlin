@@ -55,6 +55,10 @@ dependencies {
     implementation(libs.google.auth)
     implementation("com.google.firebase:firebase-firestore-ktx")
 
+    // Google Maps
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+
     // WorkManager
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 

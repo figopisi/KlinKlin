@@ -12,9 +12,10 @@ import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +23,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.klinklinapps.data.Order
 import com.example.klinklinapps.ui.theme.*
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.compose.*
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,8 +37,6 @@ fun OrderDetailScreen(
     onBack: () -> Unit,
     onFinishOrder: () -> Unit
 ) {
-    // LOGIKA PERHITUNGAN FINAL DI UI (Sesuai Permintaan)
-    // Harga Final = Subtotal Laundry (dari timbangan) + Jasa + Ongkir
     val finalPrice = if (order.totalPrice > 0) order.totalPrice 
                      else if (order.laundrySubtotal > 0) (order.laundrySubtotal + order.serviceFee + order.deliveryFee)
                      else 0L
@@ -60,6 +64,12 @@ fun OrderDetailScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
+            // MAP TRACKING REAL-TIME (Fitur Canggih)
+            if (shouldShowTracking(order.status)) {
+                TrackingMapSection(order)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // Status Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -109,14 +119,12 @@ fun OrderDetailScreen(
                     
                     HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Gray100)
 
-                    // Selalu tampilkan Subtotal Laundry
                     DetailRow(
                         Icons.Default.Scale, 
                         "Subtotal Laundry (kg)", 
                         if (order.laundrySubtotal > 0) "Rp ${order.laundrySubtotal}" else "Rp 0"
                     )
 
-                    // Selalu tampilkan Harga Final
                     DetailRow(
                         Icons.AutoMirrored.Filled.ReceiptLong, 
                         "Total Harga Akhir", 
@@ -124,7 +132,6 @@ fun OrderDetailScreen(
                         valueColor = if (finalPrice > 0) BrandBlue else Gray800
                     )
 
-                    // Selalu tampilkan Selisih
                     DetailRow(
                         Icons.Default.Difference, 
                         "Selisih Saldo", 
@@ -137,7 +144,6 @@ fun OrderDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     if (finalPrice == 0L) {
-                        // NOTE ESTIMASI (Karena belum ditimbang)
                         Surface(
                             color = BrandBlueLight.copy(alpha = 0.5f),
                             shape = RoundedCornerShape(12.dp),
@@ -159,7 +165,6 @@ fun OrderDetailScreen(
                             }
                         }
                     } else if (diff != 0L) {
-                        // NOTE SELISIH (Sudah ditimbang & ada perbedaan harga)
                         Surface(
                             color = if (diff > 0) Color(0xFFFFEBEE) else Color(0xFFE8F5E9),
                             shape = RoundedCornerShape(12.dp),
@@ -183,24 +188,8 @@ fun OrderDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Laundry Summary Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = White)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text("Ringkasan Laundry", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    DetailRow(Icons.Default.Scale, "Berat Pakaian Asli", if (order.weight > 0) "${order.weight} Kg" else "Belum ditimbang")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Driver Info
-            if (order.driverPhone.isNotEmpty() || order.status == "DRIVER_MENGANTAR") {
+            if (order.driverPhone.isNotEmpty() || order.status.contains("DRIVER")) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -242,6 +231,79 @@ fun OrderDetailScreen(
             }
         }
     }
+}
+
+@Composable
+fun TrackingMapSection(order: Order) {
+    val customerPos = LatLng(order.customerLat, order.customerLng)
+    val laundryPos = LatLng(order.laundryLat, order.laundryLng)
+    val driverPos = LatLng(order.driverLat, order.driverLng)
+
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(
+            if (order.driverLat != 0.0) driverPos else laundryPos, 
+            15f
+        )
+    }
+
+    // Auto-update camera if driver moves
+    LaunchedEffect(order.driverLat, order.driverLng) {
+        if (order.driverLat != 0.0) {
+            cameraPositionState.animate(
+                CameraUpdateFactory.newLatLng(driverPos)
+            )
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(300.dp),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        GoogleMap(
+            modifier = Modifier.fillMaxSize(),
+            cameraPositionState = cameraPositionState,
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = false,
+                myLocationButtonEnabled = false
+            )
+        ) {
+            // Marker User (Rumah)
+            Marker(
+                state = MarkerState(position = customerPos),
+                title = "Lokasi Saya",
+                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)
+            )
+
+            // Marker Laundry (Toko)
+            Marker(
+                state = MarkerState(position = laundryPos),
+                title = "Lokasi Laundry",
+                icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)
+            )
+
+            // Marker Driver (Real-time Tracking)
+            if (order.driverLat != 0.0) {
+                Marker(
+                    state = MarkerState(position = driverPos),
+                    title = "Driver: ${order.driverName}",
+                    icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE)
+                )
+            }
+        }
+    }
+}
+
+fun shouldShowTracking(status: String): Boolean {
+    return status in listOf(
+        "MENUNGGU_PICKUP",
+        "DRIVER_MENJEMPUT",
+        "DI_LAUNDRY",
+        "DRIVER_MENGANTAR",
+        "DIPROSES"
+    )
 }
 
 @Composable
