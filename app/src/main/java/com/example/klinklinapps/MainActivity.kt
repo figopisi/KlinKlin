@@ -38,8 +38,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
-        // Meminta izin notifikasi untuk Android 13+
         askNotificationPermission()
 
         setContent {
@@ -49,42 +47,36 @@ class MainActivity : ComponentActivity() {
                 val userRole by authViewModel.userRole
                 val isLoading by authViewModel.isLoading
                 val balance by authViewModel.balance
-                
-                // Get user name from email or display name (handling empty strings)
+
                 val userName = remember(currentUser) {
                     val displayName = currentUser?.displayName
-                    if (!displayName.isNullOrBlank()) {
-                        displayName
-                    } else {
-                        currentUser?.email?.substringBefore("@") ?: "User"
-                    }
+                    if (!displayName.isNullOrBlank()) displayName
+                    else currentUser?.email?.substringBefore("@") ?: "User"
                 }
-                
+
                 val userEmail = currentUser?.email ?: ""
-                
-                // Determine initial screen based on auth state
-                var currentScreen by remember { 
-                    mutableStateOf(if (currentUser != null) "dashboard" else "welcome") 
+                // Pass UID so ChatScreen knows which messages are "mine"
+                val currentUserId = currentUser?.uid ?: ""
+
+                var currentScreen by remember {
+                    mutableStateOf(if (currentUser != null) "dashboard" else "welcome")
                 }
-                
-                // Update screen when logout happens
+
                 LaunchedEffect(currentUser) {
                     if (currentUser == null) {
                         currentScreen = "welcome"
                     } else {
-                        // Refresh data when user is detected
                         ordersViewModel.listenToOrders()
                         laundryPlanViewModel.loadPlans()
                         chatViewModel.listenToMessages()
                     }
                 }
-                
+
                 var isSubscribed by remember { mutableStateOf(false) }
                 var subscriptionPackage by remember { mutableStateOf<String?>(null) }
                 var hasActiveOrder by remember { mutableStateOf(false) }
                 var selectedTopUpMethod by remember { mutableStateOf<TopUpMethod?>(null) }
-                
-                // Placeholder user data - in production this would come from Firestore
+
                 val userPhone = "08123456789"
                 val userAddress = "Jl. Sudirman No. 123, Denpasar, Bali"
 
@@ -110,15 +102,9 @@ class MainActivity : ComponentActivity() {
                             }
                         } else {
                             when (userRole) {
-                                "driver" -> DriverDashboardScreen(
-                                    onLogout = { authViewModel.logout() }
-                                )
-                                "laundry" -> LaundryDashboardScreen(
-                                    onLogout = { authViewModel.logout() }
-                                )
-                                "admin" -> AdminDashboardScreen(
-                                    onLogout = { authViewModel.logout() }
-                                )
+                                "driver" -> DriverDashboardScreen(onLogout = { authViewModel.logout() })
+                                "laundry" -> LaundryDashboardScreen(onLogout = { authViewModel.logout() })
+                                "admin" -> AdminDashboardScreen(onLogout = { authViewModel.logout() })
                                 else -> DashboardScreen(
                                     userName = userName,
                                     userEmail = userEmail,
@@ -130,6 +116,7 @@ class MainActivity : ComponentActivity() {
                                     hasActiveOrder = hasActiveOrder,
                                     ordersViewModel = ordersViewModel,
                                     chatViewModel = chatViewModel,
+                                    currentUserId = currentUserId,        // ← BARU
                                     onPlaceOrder = { currentScreen = "laundry_selection" },
                                     onOpenSubscription = { currentScreen = "subscription" },
                                     onTopUp = { currentScreen = "top_up" },
@@ -157,14 +144,14 @@ class MainActivity : ComponentActivity() {
                         onConfirmOrder = { currentScreen = "order_processing" }
                     )
                     "order_processing" -> OrderProcessingScreen(
-                        onFinish = { 
+                        onFinish = {
                             hasActiveOrder = true
-                            currentScreen = "dashboard" 
+                            currentScreen = "dashboard"
                         }
                     )
                     "subscription" -> SubscriptionScreen(
                         onBack = { currentScreen = "dashboard" },
-                        onSubscribeSuccess = { 
+                        onSubscribeSuccess = {
                             isSubscribed = true
                             subscriptionPackage = "Bulanan Plus+"
                             currentScreen = "dashboard"

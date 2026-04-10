@@ -25,7 +25,7 @@ import com.example.klinklinapps.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(
+fun KlinProfileScreen(
     userName: String,
     userEmail: String,
     userPhone: String,

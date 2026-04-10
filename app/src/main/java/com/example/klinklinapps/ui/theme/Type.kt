@@ -6,35 +6,54 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Jakarta Sans Simulated using Default with Weight adjustments for more modern look
+// Menggunakan Default dengan penekanan pada SemiBold dan ExtraBold untuk kesan modern
 val JakartaSans = FontFamily.Default
 
 val Typography = Typography(
     displayLarge = TextStyle(
         fontFamily = JakartaSans,
         fontWeight = FontWeight.Black,
-        fontSize = 32.sp
+        fontSize = 32.sp,
+        letterSpacing = (-1).sp
     ),
     headlineLarge = TextStyle(
         fontFamily = JakartaSans,
         fontWeight = FontWeight.ExtraBold,
-        fontSize = 24.sp
+        fontSize = 26.sp,
+        letterSpacing = (-0.5).sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = JakartaSans,
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp
     ),
     titleLarge = TextStyle(
         fontFamily = JakartaSans,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.ExtraBold, // Ditingkatkan dari Bold
         fontSize = 20.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = JakartaSans,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp
     ),
     bodyLarge = TextStyle(
         fontFamily = JakartaSans,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold, // Ditingkatkan dari Medium agar lebih "pop"
         fontSize = 16.sp,
         lineHeight = 24.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 0.2.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = JakartaSans,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
     ),
     labelLarge = TextStyle(
         fontFamily = JakartaSans,
-        fontWeight = FontWeight.Bold,
-        fontSize = 14.sp
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 14.sp,
+        letterSpacing = 0.5.sp
     )
 )

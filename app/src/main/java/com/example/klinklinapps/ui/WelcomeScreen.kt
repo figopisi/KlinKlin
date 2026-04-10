@@ -1,98 +1,120 @@
 package com.example.klinklinapps.ui
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.klinklinapps.R
-import com.example.klinklinapps.ui.theme.BrandBlue
-import com.example.klinklinapps.ui.theme.KlinKlinAppsTheme
-import com.example.klinklinapps.ui.theme.White
 
 @Composable
 fun WelcomeScreen(onLoginNavigate: () -> Unit, onRegisterNavigate: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(White)
-            .padding(24.dp),
+            .background(Brush.verticalGradient(listOf(Color(0xFFF9FAFC), Color.White)))
+            .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.logo_klinklin),
-            contentDescription = "Logo",
-            modifier = Modifier.size(140.dp)
-        )
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Text(
-            text = "Selamat datang di klinklin!",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Black,
-            color = Color.Black,
-            textAlign = TextAlign.Start,
-            lineHeight = 36.sp, // Increased line spacing
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Text(
-            text = "Satu langkah kecil untuk merencanakan perjalanan hari ini, adalah langkah besar untuk pengalaman bermakna esok hari. Mulai bersama Klinklin!",
-            fontSize = 16.sp,
-            color = Color.Gray,
-            textAlign = TextAlign.Start,
-            lineHeight = 24.sp, // Increased line spacing
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Button(
-            onClick = onLoginNavigate,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
-            shape = RoundedCornerShape(28.dp)
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.weight(1f).padding(top = 60.dp)
         ) {
-            Text("Masuk", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        OutlinedButton(
-            onClick = onRegisterNavigate,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            border = androidx.compose.foundation.BorderStroke(2.dp, BrandBlue),
-            shape = RoundedCornerShape(28.dp)
-        ) {
-            Text("Daftar", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = BrandBlue)
-        }
-    }
-}
+            Surface(
+                modifier = Modifier.size(150.dp),
+                shape = RoundedCornerShape(44.dp),
+                color = Color.White,
+                shadowElevation = 16.dp
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Image(
+                        painter = painterResource(id = R.drawable.logo_klinklin),
+                        contentDescription = "Logo",
+                        modifier = Modifier.size(100.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+            }
 
-@Preview(showBackground = true)
-@Composable
-fun WelcomePreview() {
-    KlinKlinAppsTheme {
-        WelcomeScreen({}, {})
+            Spacer(modifier = Modifier.height(56.dp))
+
+            Text(
+                text = "Bersih Berkilau,\nHati Tenang.",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black,
+                color = Color(0xFF2C2C2C),
+                textAlign = TextAlign.Center,
+                lineHeight = 42.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Serahkan urusan cucianmu pada ahlinya, dan nikmati waktu berhargamu bersama keluarga.",
+                fontSize = 15.sp,
+                color = Color(0xFF888888),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 20.dp),
+                maxLines = 3, // SUDAH FIXED: Tadi typo lineLines
+                lineHeight = 22.sp
+            )
+        }
+
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Button(
+                onClick = onLoginNavigate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E72F2)),
+                shape = RoundedCornerShape(20.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            ) {
+                Text(
+                    "Mulai Sekarang",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            TextButton(
+                onClick = onRegisterNavigate,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
+                Text(
+                    text = "Belum punya akun? Daftar",
+                    fontSize = 15.sp,
+                    color = Color(0xFF7E72F2),
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+        }
     }
 }
