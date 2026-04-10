@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.klinklinapps.data.ChatMessage
 import com.example.klinklinapps.data.Order
+import com.example.klinklinapps.ui.theme.White
 import kotlinx.coroutines.delay
 import java.util.Locale
 
@@ -531,7 +532,7 @@ fun SubscriptionCard(onUpgrade: () -> Unit) {
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "KlinKlin Plus+",
+                    text = "Bersih Plus+",
                     color = Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 16.sp
@@ -949,10 +950,10 @@ fun KlinCustomerOrderCard(order: Order, onClick: () -> Unit) {
                         Icon(Icons.Default.LocalLaundryService, null, tint = KlinKlinTheme.Primary)
                     }
                 }
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Order #${order.id.takeLast(5).uppercase()}", fontWeight = FontWeight.Bold)
-                    Text("Layanan Laundry", fontSize = 12.sp, color = KlinKlinTheme.MutedForeground)
+                    Text("Layanan Laundry", fontSize = 10.sp, color = KlinKlinTheme.MutedForeground)
                 }
                 Surface(color = KlinKlinTheme.Secondary, shape = RoundedCornerShape(8.dp)) {
                     Text(
@@ -1115,7 +1116,7 @@ fun KlinChatScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        "KlinKlin Support",
+                        "Bersih.in Support",
                         fontWeight = FontWeight.Black,
                         fontSize = 16.sp,
                         color = KlinKlinTheme.Foreground
@@ -1170,8 +1171,8 @@ fun KlinChatScreen(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(scrollState)
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 messages.forEach { msg ->
                     when (msg.type) {
@@ -1187,8 +1188,10 @@ fun KlinChatScreen(
 
         // Input area
         Surface(
-            modifier = Modifier.fillMaxWidth(),
-            color = Color.White,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            color = White,
             shadowElevation = 8.dp
         ) {
             Row(
@@ -1337,11 +1340,11 @@ fun SystemReminderBubble(msg: ChatMessage) {
 @Composable
 fun KlinPromoScreen() {
     val promoList = listOf(
-        Triple("Flash Sale Sepatu", "Diskon 40% cuci sepatu all type", "40%"),
+        Triple("Flash Sale Sepatu", "Diskon 40% cuci \nsepatu all type", "40%"),
         Triple("Member Baru", "Gratis ongkir 3x untuk pendaftar baru", "FREE"),
-        Triple("Referral Bonus", "Ajak teman, dapat saldo Rp 15.000", "15K"),
-        Triple("Weekend Special", "Setrika express diskon setiap Sabtu-Minggu", "25%"),
-        Triple("Paket Hemat", "Cuci + setrika 5kg hanya Rp 35.000", "35K")
+        Triple("Flash Sale Sepatu", "Diskon 40% cuci \nsepatu all type", "40%"),
+        Triple("Flash Sale Sepatu", "Diskon 40% cuci \nsepatu all type", "40%"),
+        Triple("Paket Hemat", "Cuci + setrika 5kg \nhanya Rp 35.000", "35K")
     )
 
     LazyColumn(

@@ -53,7 +53,7 @@ fun SubscriptionScreen(onBack: () -> Unit, onSubscribeSuccess: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Klinklin Plus+", fontWeight = FontWeight.Black, color = BrandBlue) },
+                title = { Text("Bersih Plus+", fontWeight = FontWeight.Black, color = BrandBlue) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = BrandBlue)
@@ -91,7 +91,7 @@ fun SubscriptionScreen(onBack: () -> Unit, onSubscribeSuccess: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Pilih Paket Klinklin Plus+", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = NavyBlue)
+            Text("Pilih Paket Bersih Plus+", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = NavyBlue)
             Spacer(modifier = Modifier.height(16.dp))
 
             plans.forEach { plan ->
