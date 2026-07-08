@@ -42,6 +42,10 @@ class DriverViewModel : ViewModel() {
     private val _deliveryOrders = mutableStateOf<List<Order>>(emptyList())
     val deliveryOrders: State<List<Order>> = _deliveryOrders
 
+    // Riwayat order yang sudah selesai (status SELESAI)
+    private val _finishedOrders = mutableStateOf<List<Order>>(emptyList())
+    val finishedOrders: State<List<Order>> = _finishedOrders
+
     private val _isProcessing = mutableStateOf(false)
     val isProcessing: State<Boolean> = _isProcessing
 
@@ -105,6 +109,8 @@ class DriverViewModel : ViewModel() {
                 }
                 // Sudah selesai dari laundry, siap diantar balik ke customer
                 _deliveryOrders.value = all.filter { it.status == "MENUNGGU_DIANTAR" }
+                // Riwayat pesanan yang sudah selesai
+                _finishedOrders.value = all.filter { it.status == "SELESAI" }
             }
     }
 
@@ -199,6 +205,7 @@ class DriverViewModel : ViewModel() {
                 customerPhone = doc.getString("customerPhone") ?: "",
                 address = doc.getString("address") ?: "",
                 service = doc.getString("service") ?: "",
+                laundryName = doc.getString("laundryName") ?: "",
                 driverName = doc.getString("driverName") ?: "",
                 driverPhone = doc.getString("driverPhone") ?: "",
                 createdAt = doc.getTimestamp("createdAt"),

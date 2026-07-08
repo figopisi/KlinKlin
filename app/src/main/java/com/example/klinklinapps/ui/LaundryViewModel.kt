@@ -16,13 +16,10 @@ import com.google.firebase.firestore.SetOptions
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 /**
  * ViewModel Laundry Partner.
- * Order sudah di-assign ke laundry sejak customer memilih (laundryUid terisi).
- *  Pesanan Masuk : DI_LAUNDRY (perlu ditimbang) + ON_HOLD (menunggu pembayaran)
- *  Sedang Diproses: DIPROSES
- *  Selesai        : MENUNGGU_DIANTAR (menunggu driver) + SELESAI
  */
 class LaundryViewModel : ViewModel() {
     private val db = FirebaseFirestore.getInstance()
@@ -30,6 +27,7 @@ class LaundryViewModel : ViewModel() {
     private val repository = OrderRepository()
 
     private var ordersListener: ListenerRegistration? = null
+    private var profileListener: ListenerRegistration? = null
 
     private val _incomingOrders = mutableStateOf<List<Order>>(emptyList())
     val incomingOrders: State<List<Order>> = _incomingOrders
@@ -49,20 +47,91 @@ class LaundryViewModel : ViewModel() {
     private val _laundryName = mutableStateOf("Mitra Laundry")
     val laundryName: State<String> = _laundryName
 
+    // Keuangan
+    private val _balance = mutableStateOf(0L)
+    val balance: State<Long> = _balance
+
+    private val _totalRevenue = mutableStateOf(0L)
+    val totalRevenue: State<Long> = _totalRevenue
+
+    private val _totalWithdrawal = mutableStateOf(0L)
+    val totalWithdrawal: State<Long> = _totalWithdrawal
+
+    // Rekening Aktif
+    private val _bankName = mutableStateOf("")
+    val bankName: State<String> = _bankName
+
+    private val _bankAccountNumber = mutableStateOf("")
+    val bankAccountNumber: State<String> = _bankAccountNumber
+
+    private val _bankAccountName = mutableStateOf("")
+    val bankAccountName: State<String> = _bankAccountName
+
+    // Request Perubahan Rekening
+    private val _bankChangeRequestStatus = mutableStateOf("NONE") // NONE, PENDING, APPROVED, REJECTED
+    val bankChangeRequestStatus: State<String> = _bankChangeRequestStatus
+
+    private val _pendingBankName = mutableStateOf("")
+    val pendingBankName: State<String> = _pendingBankName
+
+    private val _pendingBankAccountNumber = mutableStateOf("")
+    val pendingBankAccountNumber: State<String> = _pendingBankAccountNumber
+
+    private val _pendingBankAccountName = mutableStateOf("")
+    val pendingBankAccountName: State<String> = _pendingBankAccountName
+
     init {
         refresh()
     }
 
-    /** Pasang ulang listener + profil (dipanggil saat dashboard dibuka / ganti akun). */
     fun refresh() {
-        loadProfile()
+        listenProfile()
         listenOrders()
     }
 
-    private fun loadProfile() {
+    private fun listenProfile() {
         val uid = auth.currentUser?.uid ?: return
-        db.collection("users").document(uid).get()
-            .addOnSuccessListener { doc -> _laundryName.value = doc.getString("name") ?: "Mitra Laundry" }
+        profileListener?.remove()
+        profileListener = db.collection("users").document(uid)
+            .addSnapshotListener { doc, _ ->
+                if (doc != null && doc.exists()) {
+                    _laundryName.value = doc.getString("name") ?: "Mitra Laundry"
+                    _balance.value = doc.getLong("balance") ?: 0L
+                    _totalRevenue.value = doc.getLong("totalRevenue") ?: 0L
+                    _totalWithdrawal.value = doc.getLong("totalWithdrawal") ?: 0L
+                    
+                    _bankName.value = doc.getString("bankName") ?: ""
+                    _bankAccountNumber.value = doc.getString("bankAccountNumber") ?: ""
+                    _bankAccountName.value = doc.getString("bankAccountName") ?: ""
+                    _bankChangeRequestStatus.value = doc.getString("bankChangeRequestStatus") ?: "NONE"
+
+                    _pendingBankName.value = doc.getString("pendingBankName") ?: ""
+                    _pendingBankAccountNumber.value = doc.getString("pendingBankAccountNumber") ?: ""
+                    _pendingBankAccountName.value = doc.getString("pendingBankAccountName") ?: ""
+                }
+            }
+    }
+
+    fun requestBankChange(newBankName: String, newAccountName: String, newAccountNumber: String) {
+        val uid = auth.currentUser?.uid ?: return
+        _isProcessing.value = true
+        viewModelScope.launch {
+            try {
+                db.collection("users").document(uid).update(
+                    mapOf(
+                        "pendingBankName" to newBankName,
+                        "pendingBankAccountName" to newAccountName,
+                        "pendingBankAccountNumber" to newAccountNumber,
+                        "bankChangeRequestStatus" to "PENDING",
+                        "bankChangeRequestedAt" to FieldValue.serverTimestamp()
+                    )
+                ).await()
+                _isProcessing.value = false
+            } catch (e: Exception) {
+                _isProcessing.value = false
+                _errorMessage.value = e.localizedMessage ?: "Gagal mengajukan perubahan rekening"
+            }
+        }
     }
 
     fun listenOrders() {
@@ -79,6 +148,57 @@ class LaundryViewModel : ViewModel() {
                 _processingOrders.value = all.filter { it.status == "DIPROSES" }
                 _completedOrders.value = all.filter { it.status == "MENUNGGU_DIANTAR" || it.status == "SELESAI" }
             }
+    }
+
+    fun withdrawBalance(amount: Long, onSuccess: () -> Unit) {
+        val uid = auth.currentUser?.uid ?: return
+        if (amount <= 0) {
+            _errorMessage.value = "Nominal harus lebih dari 0"
+            return
+        }
+        if (amount > _balance.value) {
+            _errorMessage.value = "Saldo tidak mencukupi"
+            return
+        }
+        if (_bankAccountNumber.value.isEmpty()) {
+            _errorMessage.value = "Atur rekening tujuan terlebih dahulu"
+            return
+        }
+
+        _isProcessing.value = true
+        viewModelScope.launch {
+            try {
+                db.runTransaction { transaction ->
+                    val userRef = db.collection("users").document(uid)
+                    val snap = transaction.get(userRef)
+                    val currentBalance = snap.getLong("balance") ?: 0L
+                    
+                    if (currentBalance < amount) throw Exception("Saldo tidak mencukupi")
+                    
+                    transaction.update(userRef, mapOf(
+                        "balance" to FieldValue.increment(-amount),
+                        "totalWithdrawal" to FieldValue.increment(amount)
+                    ))
+                    
+                    // Catat riwayat withdrawal
+                    val withdrawalId = db.collection("withdrawals").document().id
+                    transaction.set(db.collection("withdrawals").document(withdrawalId), mapOf(
+                        "userId" to uid,
+                        "amount" to amount,
+                        "status" to "COMPLETED",
+                        "bankName" to _bankName.value,
+                        "bankAccountName" to _bankAccountName.value,
+                        "bankAccountNumber" to _bankAccountNumber.value,
+                        "createdAt" to FieldValue.serverTimestamp()
+                    ))
+                }.await()
+                _isProcessing.value = false
+                onSuccess()
+            } catch (e: Exception) {
+                _isProcessing.value = false
+                _errorMessage.value = e.localizedMessage ?: "Gagal melakukan penarikan"
+            }
+        }
     }
 
     /** Timbang di Pesanan Masuk. Jika saldo kurang -> ON_HOLD (draft tersimpan). */
@@ -203,5 +323,6 @@ class LaundryViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         ordersListener?.remove()
+        profileListener?.remove()
     }
 }

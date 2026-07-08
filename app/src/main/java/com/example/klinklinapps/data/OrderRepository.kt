@@ -23,6 +23,7 @@ data class Order(
     val address: String = "",
     val service: String = "",
     val laundryName: String = "",
+    val laundryAddress: String = "",
     val driverName: String = "",
     val driverPhone: String = "",
     val createdAt: Timestamp? = null,
@@ -50,14 +51,6 @@ sealed class WeighOutcome {
 
 /**
  * ESCROW MODEL (per-order, konservatif):
- *  - Buat order : customer -estimasi, escrow +estimasi, order.escrowHeld = estimasi.
- *  - Timbang    : selisih = hargaAktual - estimasi.
- *       selisih <= 0        -> refund/pas: customer +|selisih|, escrow -|selisih|  -> DIPROSES
- *       selisih > 0 cukup   -> customer -selisih, escrow +selisih                 -> DIPROSES
- *       selisih > 0 kurang  -> simpan draft (berat+nominal), status ON_HOLD, escrow TIDAK berubah
- *  - Cek bayar  : ulangi penyesuaian saat saldo cukup                              -> DIPROSES
- *  - Selesai    : escrow -total, laundry +total, order.escrowHeld = 0              -> SELESAI
- * Invarian: escrow.totalHold == Σ order.escrowHeld.
  */
 class OrderRepository {
     private val db = FirebaseFirestore.getInstance()
@@ -94,7 +87,6 @@ class OrderRepository {
                 val balance = tx.get(userRef(customerUid)).getLong("balance") ?: 0L
 
                 if (adjustment > 0 && balance < adjustment) {
-                    // Draft ON_HOLD: berat & nominal disimpan, escrow BELUM diubah
                     tx.update(orderRef(orderId), mapOf(
                         "status" to "ON_HOLD",
                         "weight" to weight,
@@ -140,7 +132,6 @@ class OrderRepository {
         }
     }
 
-    /** Terapkan penyesuaian escrow lalu set order -> DIPROSES (dipanggil dalam transaksi). */
     private fun applyAdjustment(
         tx: com.google.firebase.firestore.Transaction,
         orderId: String,
@@ -151,7 +142,6 @@ class OrderRepository {
         actualSubtotal: Long
     ) {
         if (adjustment != 0L) {
-            // adjustment > 0 -> potong saldo customer; < 0 -> kembalikan (increment(-adjustment))
             tx.update(userRef(customerUid), "balance", FieldValue.increment(-adjustment))
             tx.set(escrowRef, mapOf("totalHold" to FieldValue.increment(adjustment)), SetOptions.merge())
         }
@@ -177,7 +167,11 @@ class OrderRepository {
 
                 tx.set(escrowRef, mapOf("totalHold" to FieldValue.increment(-total)), SetOptions.merge())
                 if (laundryUid.isNotEmpty()) {
-                    tx.update(userRef(laundryUid), "balance", FieldValue.increment(total))
+                    // Update Saldo Laundry DAN Total Pendapatan
+                    tx.update(userRef(laundryUid), mapOf(
+                        "balance" to FieldValue.increment(total),
+                        "totalRevenue" to FieldValue.increment(total)
+                    ))
                 }
                 tx.update(orderRef(orderId), mapOf(
                     "status" to "SELESAI",
