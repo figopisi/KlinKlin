@@ -1,4 +1,5 @@
 package com.example.klinklinapps.ui
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +35,7 @@ fun WelcomeScreen(onLoginNavigate: () -> Unit, onRegisterNavigate: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
+            // Gradient background lembut agar logo lebih stand out
             .background(Brush.verticalGradient(listOf(Color(0xFFF9FAFC), Color.White)))
             .padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -41,44 +43,44 @@ fun WelcomeScreen(onLoginNavigate: () -> Unit, onRegisterNavigate: () -> Unit) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.weight(1f).padding(top = 60.dp)
+            modifier = Modifier.weight(1f).padding(top = 40.dp) // Sedikit naik biar wadah besarnya muat
         ) {
+            // --- WADAH LOGO DIPERBESAR (220.dp) ---
             Surface(
-                modifier = Modifier.size(150.dp),
-                shape = RoundedCornerShape(44.dp),
+                modifier = Modifier.size(220.dp),
+                shape = RoundedCornerShape(64.dp), // Corner lebih tumpul biar proporsional
                 color = Color.White,
-                shadowElevation = 16.dp
+                shadowElevation = 24.dp // Shadow lebih tebal biar berasa "mengambang"
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Image(
                         painter = painterResource(id = R.drawable.logo_klinklin),
                         contentDescription = "Logo",
-                        modifier = Modifier.size(100.dp),
+                        modifier = Modifier.size(160.dp), // Logo juga diperbesar di dalam wadah
                         contentScale = ContentScale.Fit
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(56.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
             Text(
                 text = "Bersih Berkilau,\nHati Tenang.",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Black,
-                color = Color(0xFF2C2C2C),
+                color = Color(0xFF001C3D), // Ubah ke Navy
                 textAlign = TextAlign.Center,
-                lineHeight = 42.sp
+                lineHeight = 40.sp
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Text(
                 text = "Serahkan urusan cucianmu pada ahlinya, dan nikmati waktu berhargamu bersama keluarga.",
                 fontSize = 15.sp,
-                color = Color(0xFF888888),
+                color = Color(0xFF64748B),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 20.dp),
-                maxLines = 3, // SUDAH FIXED: Tadi typo lineLines
+                modifier = Modifier.padding(horizontal = 16.dp),
                 lineHeight = 22.sp
             )
         }
@@ -92,9 +94,10 @@ fun WelcomeScreen(onLoginNavigate: () -> Unit, onRegisterNavigate: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7E72F2)),
+                // --- WARNA TOMBOL NAVY BLUE ---
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF001C3D)),
                 shape = RoundedCornerShape(20.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
             ) {
                 Text(
                     "Mulai Sekarang",
@@ -111,7 +114,7 @@ fun WelcomeScreen(onLoginNavigate: () -> Unit, onRegisterNavigate: () -> Unit) {
                 Text(
                     text = "Belum punya akun? Daftar",
                     fontSize = 15.sp,
-                    color = Color(0xFF7E72F2),
+                    color = Color(0xFF001C3D),
                     fontWeight = FontWeight.ExtraBold
                 )
             }

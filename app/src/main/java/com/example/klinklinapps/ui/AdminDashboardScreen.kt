@@ -3,6 +3,10 @@ package com.example.klinklinapps.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -11,6 +15,18 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun AdminDashboardScreen(onLogout: () -> Unit) {
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        LogoutConfirmDialog(
+            onDismiss = { showLogoutDialog = false },
+            onConfirm = {
+                showLogoutDialog = false
+                onLogout()
+            }
+        )
+    }
+
     Scaffold { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
@@ -21,7 +37,7 @@ fun AdminDashboardScreen(onLogout: () -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("Panel Kontrol Utama.")
             Spacer(modifier = Modifier.height(32.dp))
-            Button(onClick = onLogout) { Text("Logout") }
+            Button(onClick = { showLogoutDialog = true }) { Text("Logout") }
         }
     }
 }

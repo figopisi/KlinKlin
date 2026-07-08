@@ -35,6 +35,10 @@ import com.example.klinklinapps.data.Order
 import com.example.klinklinapps.ui.theme.White
 import kotlinx.coroutines.delay
 import java.util.Locale
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalContext
 
 // ==================== COLOR THEME ====================
 object KlinKlinTheme {
@@ -59,6 +63,29 @@ object KlinKlinTheme {
     val PromoBg1 = Color(0xFFBBDEFB)
     val PromoBg2 = Color(0xFFC5E1F5)
     val PromoBg3 = Color(0xFFD4E9F7)
+}
+
+// ==================== PRESS ANIMATION HELPER ====================
+// Efek "bounce" halus saat kartu/tombol ditekan — dipakai di seluruh dashboard.
+@Composable
+fun Modifier.bounceClick(enabled: Boolean = true, onClick: () -> Unit): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.955f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "bounceClick"
+    )
+    return this
+        .scale(scale)
+        .clickable(
+            interactionSource = interactionSource,
+            indication = null,
+            enabled = enabled
+        ) { onClick() }
 }
 
 // ==================== DATA MODELS ====================
@@ -91,7 +118,7 @@ data class WeatherDay(
 
 // ==================== HEADER COMPONENT ====================
 @Composable
-fun Header(userName: String) {
+fun Header(userName: String, onNotificationClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -135,12 +162,12 @@ fun Header(userName: String) {
                 .shadow(2.dp, CircleShape)
                 .clip(CircleShape)
                 .background(Color.White)
-                .clickable { },
+                .bounceClick { onNotificationClick() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Default.Notifications,
-                contentDescription = null,
+                contentDescription = "Notifikasi",
                 tint = KlinKlinTheme.Primary
             )
         }
@@ -154,7 +181,7 @@ fun ActiveOrderReminder(message: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .clickable { onClick() },
+            .bounceClick { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = KlinKlinTheme.Primary)
     ) {
@@ -237,7 +264,7 @@ fun WalletCard(balance: Int, onTopUp: () -> Unit) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
                 color = KlinKlinTheme.Primary,
-                modifier = Modifier.clickable { onTopUp() }
+                modifier = Modifier.bounceClick { onTopUp() }
             ) {
                 Text(
                     text = "Top Up",
@@ -253,7 +280,7 @@ fun WalletCard(balance: Int, onTopUp: () -> Unit) {
 
 // ==================== PROMO CAROUSEL (UPDATED COLORS) ====================
 @Composable
-fun PromoCarousel() {
+fun PromoCarousel(onSeeAll: () -> Unit = {}) {
     val promos = listOf(
         PromoData(1, "Bikin Sepatu Kinclong!", "Cuci sepatu premium dengan teknologi terbaru", "20%", KlinKlinTheme.PromoBg1, Icons.Default.AutoAwesome),
         PromoData(2, "Diskon Merchant", "Hemat lebih banyak untuk member setia", "30%", KlinKlinTheme.PromoBg2, Icons.Default.Percent),
@@ -298,7 +325,8 @@ fun PromoCarousel() {
                 text = "Lihat Semua",
                 fontSize = 12.sp,
                 color = KlinKlinTheme.Primary,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.bounceClick { onSeeAll() }
             )
         }
 
@@ -463,7 +491,7 @@ fun ServiceCard(service: Service, onClick: () -> Unit, modifier: Modifier = Modi
     Card(
         modifier = modifier
             .height(160.dp)
-            .clickable { onClick() },
+            .bounceClick { onClick() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
@@ -522,7 +550,7 @@ fun SubscriptionCard(onUpgrade: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .clickable { onUpgrade() },
+            .bounceClick { onUpgrade() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = KlinKlinTheme.Primary)
     ) {
@@ -566,7 +594,7 @@ fun SmartPlannerCard(onOpen: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
-            .clickable { onOpen() },
+            .bounceClick { onOpen() },
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
@@ -875,7 +903,11 @@ fun BottomNavigation(selectedTab: Int, onTabSelected: (Int) -> Unit) {
 
 // ==================== ORDERS SCREEN ====================
 @Composable
-fun KlinOrdersScreen(ordersViewModel: OrdersViewModel, onClick: (Order) -> Unit) {
+fun KlinOrdersScreen(
+    ordersViewModel: OrdersViewModel,
+    onClick: (Order) -> Unit,
+    onChat: (Order) -> Unit = {}
+) {
     val orders by ordersViewModel.orders
 
     LazyColumn(
@@ -924,18 +956,21 @@ fun KlinOrdersScreen(ordersViewModel: OrdersViewModel, onClick: (Order) -> Unit)
             }
         } else {
             items(orders) { order ->
-                KlinCustomerOrderCard(order) { onClick(order) }
+                KlinCustomerOrderCard(order, onClick = { onClick(order) }, onChat = { onChat(order) })
             }
         }
     }
 }
 
 @Composable
-fun KlinCustomerOrderCard(order: Order, onClick: () -> Unit) {
+fun KlinCustomerOrderCard(order: Order, onClick: () -> Unit, onChat: () -> Unit = {}) {
+    // Chat driver aktif saat order sudah dipegang driver & belum selesai
+    val driverActive = order.driverUid.isNotEmpty() && order.status != "SELESAI"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .bounceClick { onClick() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
@@ -953,16 +988,33 @@ fun KlinCustomerOrderCard(order: Order, onClick: () -> Unit) {
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Order #${order.id.takeLast(5).uppercase()}", fontWeight = FontWeight.Bold)
-                    Text("Layanan Laundry", fontSize = 10.sp, color = KlinKlinTheme.MutedForeground)
+                    Text(
+                        if (order.driverName.isNotEmpty()) "Driver: ${order.driverName}" else "Layanan Laundry",
+                        fontSize = 10.sp, color = KlinKlinTheme.MutedForeground
+                    )
                 }
                 Surface(color = KlinKlinTheme.Secondary, shape = RoundedCornerShape(8.dp)) {
                     Text(
-                        order.status.replace("_", " "),
+                        statusLabel(order.status),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         color = KlinKlinTheme.Primary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 10.sp
                     )
+                }
+            }
+
+            if (driverActive) {
+                Spacer(modifier = Modifier.height(14.dp))
+                OutlinedButton(
+                    onClick = onChat,
+                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = KlinKlinTheme.Primary)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Chat, null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Chat Driver", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }
@@ -978,8 +1030,29 @@ fun KlinProfileScreen(
     userAddress: String,
     subscriptionPackage: String?,
     onLogout: () -> Unit,
-    onOpenSubscription: () -> Unit
+    onOpenSubscription: () -> Unit,
+    onDeleteAccount: () -> Unit = {}
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+    if (showDeleteDialog) {
+        DeleteAccountDialog(
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                showDeleteDialog = false
+                onDeleteAccount()
+            }
+        )
+    }
+    if (showLogoutDialog) {
+        LogoutConfirmDialog(
+            onDismiss = { showLogoutDialog = false },
+            onConfirm = {
+                showLogoutDialog = false
+                onLogout()
+            }
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1049,7 +1122,7 @@ fun KlinProfileScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(
-            onClick = onLogout,
+            onClick = { showLogoutDialog = true },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
@@ -1061,7 +1134,45 @@ fun KlinProfileScreen(
         ) {
             Text("Keluar", fontWeight = FontWeight.Bold)
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(
+            onClick = { showDeleteDialog = true },
+            modifier = Modifier.fillMaxWidth().height(48.dp)
+        ) {
+            Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Hapus Akun Permanen", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+        }
     }
+}
+
+// Dialog konfirmasi hapus akun — dipakai bersama customer/driver/laundry.
+@Composable
+fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Default.WarningAmber, contentDescription = null, tint = Color.Red) },
+        title = { Text("Hapus Akun?", fontWeight = FontWeight.Black, color = KlinKlinTheme.Foreground) },
+        text = {
+            Text(
+                "Akun beserta seluruh datamu akan dihapus permanen dan tidak bisa dikembalikan. Lanjutkan?",
+                color = KlinKlinTheme.MutedForeground,
+                fontSize = 14.sp
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) { Text("Ya, Hapus") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Batal", color = KlinKlinTheme.MutedForeground) }
+        },
+        containerColor = Color.White
+    )
 }
 
 @Composable
@@ -1074,10 +1185,113 @@ fun ProfileInfoRow(label: String, value: String) {
 }
 
 // ==================== CHAT SCREEN (UPDATED WITH ChatMessage) ====================
+// ==================== CHAT LIST (KONTAK) ====================
+@Composable
+fun ChatListScreen(
+    ordersViewModel: OrdersViewModel,
+    onOpenSupport: () -> Unit,
+    onOpenDriverChat: (Order) -> Unit,
+    onOpenLaundryChat: (String, String) -> Unit = { _, _ -> }
+) {
+    val orders by ordersViewModel.orders
+    val activeOrders = orders.filter { it.status != "SELESAI" }
+    val driverChats = activeOrders.filter { it.driverUid.isNotEmpty() }
+    // Satu kontak per laundry (walau beda pesanan)
+    val laundryContacts = activeOrders.filter { it.laundryUid.isNotEmpty() }.distinctBy { it.laundryUid }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        contentPadding = PaddingValues(top = 32.dp, bottom = 120.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text("Pesan", fontSize = 20.sp, fontWeight = FontWeight.Black, color = KlinKlinTheme.Foreground)
+        }
+        item {
+            ChatContactRow(
+                icon = Icons.Default.SupportAgent,
+                title = "KlinKlin Support",
+                subtitle = "Bantuan seputar layanan & akun",
+                onClick = onOpenSupport
+            )
+        }
+        if (driverChats.isNotEmpty()) {
+            item {
+                Text(
+                    "Driver Pesananmu",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = KlinKlinTheme.MutedForeground,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            items(driverChats) { order ->
+                ChatContactRow(
+                    icon = Icons.Default.TwoWheeler,
+                    title = order.driverName.ifEmpty { "Driver" },
+                    subtitle = "Order #${order.id.takeLast(5).uppercase()} • ${statusLabel(order.status)}",
+                    onClick = { onOpenDriverChat(order) }
+                )
+            }
+        }
+        if (laundryContacts.isNotEmpty()) {
+            item {
+                Text(
+                    "Laundry",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = KlinKlinTheme.MutedForeground,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            items(laundryContacts) { order ->
+                ChatContactRow(
+                    icon = Icons.Default.LocalLaundryService,
+                    title = order.laundryName.ifEmpty { "Laundry" },
+                    subtitle = "Chat dengan mitra laundry",
+                    onClick = { onOpenLaundryChat(order.laundryUid, order.laundryName) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatContactRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().bounceClick { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.size(46.dp).background(KlinKlinTheme.Secondary, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = KlinKlinTheme.Primary)
+            }
+            Spacer(modifier = Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, color = KlinKlinTheme.Foreground)
+                Text(subtitle, fontSize = 12.sp, color = KlinKlinTheme.MutedForeground)
+            }
+            Icon(Icons.Default.ChevronRight, null, tint = KlinKlinTheme.MutedForeground)
+        }
+    }
+}
+
 @Composable
 fun KlinChatScreen(
     chatViewModel: ChatViewModel,
-    currentUserId: String
+    currentUserId: String,
+    onBack: (() -> Unit)? = null
 ) {
     val messages by chatViewModel.messages
     var inputText by remember { mutableStateOf("") }
@@ -1100,6 +1314,12 @@ fun KlinChatScreen(
                 .padding(horizontal = 24.dp, vertical = 20.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (onBack != null) {
+                    IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = KlinKlinTheme.Primary)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
                 Box(
                     modifier = Modifier
                         .size(42.dp)
@@ -1116,7 +1336,7 @@ fun KlinChatScreen(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        "Bersih.in Support",
+                        "KlinKlin Support",
                         fontWeight = FontWeight.Black,
                         fontSize = 16.sp,
                         color = KlinKlinTheme.Foreground
@@ -1433,7 +1653,10 @@ fun DashboardScreen(
     onOpenSubscription: () -> Unit,
     onTopUp: () -> Unit,
     onOpenPlanner: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit = {},
+    isSavingProfile: Boolean = false,
+    onSaveProfile: (String, String, String, String, String) -> Unit = { _, _, _, _, _ -> }
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedOrder by remember { mutableStateOf<Order?>(null) }
@@ -1446,13 +1669,65 @@ fun DashboardScreen(
         Service("Express", "Kilat 6 Jam", Icons.Default.Speed, KlinKlinTheme.ServiceBg4, "HOT")
     )
 
-    if (selectedOrder != null) {
+    // Chat order (customer <-> driver) terpisah dari layar detail, bisa dibuka
+    // dari detail pesanan MAUPUN langsung dari kartu di tab Pesanan.
+    var chatOrder by remember { mutableStateOf<Order?>(null) }
+    // Chat laundry per-laundry: Pair(laundryUid, laundryName)
+    var chatLaundry by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showSupportChat by remember { mutableStateOf(false) }
+
+    // Back tidak keluar app: mundur ke chat -> detail -> tab Home -> (dobel-back) keluar
+    val context = LocalContext.current
+    var lastBackPress by remember { mutableStateOf(0L) }
+    BackHandler(enabled = true) {
+        when {
+            chatOrder != null -> chatOrder = null
+            chatLaundry != null -> chatLaundry = null
+            showSupportChat -> showSupportChat = false
+            selectedOrder != null -> selectedOrder = null
+            selectedTab != 0 -> selectedTab = 0
+            else -> {
+                val now = System.currentTimeMillis()
+                if (now - lastBackPress < 2000) {
+                    (context as? Activity)?.finish()
+                } else {
+                    lastBackPress = now
+                    Toast.makeText(context, "Tekan sekali lagi untuk keluar", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    if (chatOrder != null) {
+        OrderChatScreen(
+            chatId = chatOrder!!.id,
+            peerName = chatOrder!!.driverName.ifEmpty { "Driver" },
+            peerSubtitle = "Driver KlinKlin",
+            onBack = { chatOrder = null }
+        )
+    } else if (chatLaundry != null) {
+        OrderChatScreen(
+            chatId = "${currentUserId}_${chatLaundry!!.first}",
+            peerName = chatLaundry!!.second.ifEmpty { "Laundry" },
+            peerSubtitle = "Laundry",
+            peerIcon = Icons.Default.LocalLaundryService,
+            chatCollection = "laundry_chats",
+            onBack = { chatLaundry = null }
+        )
+    } else if (showSupportChat) {
+        KlinChatScreen(
+            chatViewModel = chatViewModel,
+            currentUserId = currentUserId,
+            onBack = { showSupportChat = false }
+        )
+    } else if (selectedOrder != null) {
         OrderDetailScreen(
             order = selectedOrder!!,
             onBack = { selectedOrder = null },
             onFinishOrder = {
                 ordersViewModel.completeOrder(selectedOrder!!.id) { selectedOrder = null }
-            }
+            },
+            onOpenChat = { chatOrder = selectedOrder }
         )
     } else {
         Box(
@@ -1468,7 +1743,7 @@ fun DashboardScreen(
                             .verticalScroll(rememberScrollState())
                             .padding(bottom = 120.dp)
                     ) {
-                        Header(userName = userName)
+                        Header(userName = userName, onNotificationClick = { selectedTab = 2 })
 
                         if (hasActiveOrder || reminder != null) {
                             ActiveOrderReminder(
@@ -1480,7 +1755,7 @@ fun DashboardScreen(
 
                         WalletCard(balance = balance, onTopUp = onTopUp)
 
-                        PromoCarousel()
+                        PromoCarousel(onSeeAll = { selectedTab = 1 })
 
                         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
                             Text(
@@ -1521,19 +1796,28 @@ fun DashboardScreen(
                     }
                 }
                 1 -> KlinPromoScreen()
-                2 -> KlinOrdersScreen(ordersViewModel) { order -> selectedOrder = order }
-                3 -> KlinChatScreen(
-                    chatViewModel = chatViewModel,
-                    currentUserId = currentUserId
+                2 -> KlinOrdersScreen(
+                    ordersViewModel = ordersViewModel,
+                    onClick = { order -> selectedOrder = order },
+                    onChat = { order -> chatOrder = order }
                 )
-                4 -> KlinProfileScreen(
-                    userName = userName,
-                    userEmail = userEmail,
-                    userPhone = userPhone,
-                    userAddress = userAddress,
-                    subscriptionPackage = if (isSubscribed) subscriptionPackage else null,
+                3 -> ChatListScreen(
+                    ordersViewModel = ordersViewModel,
+                    onOpenSupport = { showSupportChat = true },
+                    onOpenDriverChat = { order -> chatOrder = order },
+                    onOpenLaundryChat = { laundryUid, laundryName -> chatLaundry = laundryUid to laundryName }
+                )
+                4 -> ProfileManagementScreen(
+                    initialName = userName,
+                    email = userEmail,
+                    initialPhone = userPhone,
+                    initialAddress = userAddress,
+                    roleLabel = "Customer",
+                    isSaving = isSavingProfile,
+                    onSave = onSaveProfile,
+                    onDeleteAccount = onDeleteAccount,
                     onLogout = onLogout,
-                    onOpenSubscription = onOpenSubscription
+                    onBack = null
                 )
             }
 

@@ -34,7 +34,10 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun KlinKlinAppsTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    // Seluruh UI KlinKlin didesain untuk latar terang (banyak warna di-hardcode putih/biru muda).
+    // Mengikuti dark mode sistem membuat teks default jadi putih di atas latar terang -> tidak terbaca.
+    // Karena itu tema dikunci ke Light agar konsisten di semua device.
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme

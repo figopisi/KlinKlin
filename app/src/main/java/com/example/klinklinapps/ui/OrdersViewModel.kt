@@ -70,6 +70,12 @@ class OrdersViewModel : ViewModel() {
                                 laundrySubtotal = doc.getLong("laundrySubtotal") ?: 0L,
                                 totalPrice = doc.getLong("totalPrice") ?: 0L,
                                 customerName = doc.getString("customerName") ?: "Customer",
+                                customerPhone = doc.getString("customerPhone") ?: "",
+                                address = doc.getString("address") ?: "",
+                                service = doc.getString("service") ?: "",
+                                laundryName = doc.getString("laundryName") ?: "",
+                                escrowHeld = doc.getLong("escrowHeld") ?: 0L,
+                                priceAdjustment = doc.getLong("priceAdjustment") ?: 0L,
                                 driverName = doc.getString("driverName") ?: "",
                                 driverPhone = doc.getString("driverPhone") ?: "",
                                 createdAt = doc.getTimestamp("createdAt"),
@@ -101,13 +107,15 @@ class OrdersViewModel : ViewModel() {
     }
 
     fun placeOrder(
-        service: String, 
+        service: String,
         estimatedPrice: Long,
         serviceFee: Long,
         deliveryFee: Long,
         userName: String,
         userPhone: String,
         userAddress: String,
+        laundryUid: String = "",
+        laundryName: String = "",
         onSuccess: () -> Unit
     ) {
         val user = auth.currentUser ?: return
@@ -143,6 +151,10 @@ class OrdersViewModel : ViewModel() {
                         "address" to userAddress,
                         "service" to service,
                         "status" to "MENUNGGU_PICKUP",
+                        "laundryUid" to laundryUid,
+                        "laundryName" to laundryName,
+                        "escrowHeld" to estimatedPrice,
+                        "priceAdjustment" to 0L,
                         "estimatedPrice" to estimatedPrice,
                         "serviceFee" to serviceFee,
                         "deliveryFee" to deliveryFee,
@@ -178,7 +190,7 @@ class OrdersViewModel : ViewModel() {
     fun completeOrder(orderId: String, onSuccess: () -> Unit) {
         viewModelScope.launch {
             _isProcessing.value = true
-            val result = repository.updateStatusPesanan(orderId, "SELESAI")
+            val result = repository.completeOrder(orderId)
             _isProcessing.value = false
             if (result.isSuccess) {
                 onSuccess()

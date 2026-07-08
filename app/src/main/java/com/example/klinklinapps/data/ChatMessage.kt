@@ -5,9 +5,10 @@ import com.google.firebase.Timestamp
 data class ChatMessage(
     val id: String = "",
     val senderId: String = "",
+    val senderName: String = "",
     val receiverId: String = "",
     val message: String = "",
     val timestamp: Timestamp? = null,
     val isRead: Boolean = false,
-    val type: String = "TEXT" // TEXT, SYSTEM_REMINDER
+    val type: String = "TEXT" // TEXT, SYSTEM, SYSTEM_REMINDER
 )

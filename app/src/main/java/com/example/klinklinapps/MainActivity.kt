@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -26,6 +27,8 @@ class MainActivity : ComponentActivity() {
     private val ordersViewModel: OrdersViewModel by viewModels()
     private val laundryPlanViewModel: LaundryPlanViewModel by viewModels()
     private val chatViewModel: ChatViewModel by viewModels()
+    private val driverViewModel: DriverViewModel by viewModels()
+    private val laundryViewModel: LaundryViewModel by viewModels()
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -48,11 +51,18 @@ class MainActivity : ComponentActivity() {
                 val isLoading by authViewModel.isLoading
                 val balance by authViewModel.balance
 
-                val userName = remember(currentUser) {
+                val authName = remember(currentUser) {
                     val displayName = currentUser?.displayName
                     if (!displayName.isNullOrBlank()) displayName
                     else currentUser?.email?.substringBefore("@") ?: "User"
                 }
+
+                // Data profil live dari Firestore (fallback ke data auth kalau belum termuat)
+                val liveName by authViewModel.userName
+                val livePhone by authViewModel.userPhone
+                val liveAddress by authViewModel.userAddress
+                val isSavingProfile by authViewModel.isSavingProfile
+                val userName = liveName.ifBlank { authName }
 
                 val userEmail = currentUser?.email ?: ""
                 // Pass UID so ChatScreen knows which messages are "mine"
@@ -76,9 +86,47 @@ class MainActivity : ComponentActivity() {
                 var subscriptionPackage by remember { mutableStateOf<String?>(null) }
                 var hasActiveOrder by remember { mutableStateOf(false) }
                 var selectedTopUpMethod by remember { mutableStateOf<TopUpMethod?>(null) }
+                var selectedShop by remember { mutableStateOf<LaundryShop?>(null) }
 
-                val userPhone = "08123456789"
-                val userAddress = "Jl. Sudirman No. 123, Denpasar, Bali"
+                val userPhone = livePhone.ifBlank { "08123456789" }
+                val userAddress = liveAddress.ifBlank { "Jl. Sudirman No. 123, Denpasar, Bali" }
+
+                // Hapus akun (customer/driver/laundry). Navigasi ke welcome ditangani
+                // LaunchedEffect(currentUser) karena VM mengosongkan currentUser.
+                val onDeleteAccount: () -> Unit = {
+                    authViewModel.deleteAccount(
+                        onSuccess = {
+                            Toast.makeText(context, "Akun berhasil dihapus.", Toast.LENGTH_LONG).show()
+                        },
+                        onError = { msg ->
+                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                        }
+                    )
+                }
+
+                // Simpan perubahan profil (+ opsional ganti password) untuk semua role.
+                val onSaveProfile: (String, String, String, String, String) -> Unit = { n, p, a, cur, pw ->
+                    authViewModel.updateProfile(n, p, a, cur, pw) { ok, err ->
+                        Toast.makeText(
+                            context,
+                            if (ok) "Profil berhasil diperbarui." else (err ?: "Gagal menyimpan profil."),
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+
+                // Tombol back di sub-layar: kembali ke layar induk, bukan keluar app.
+                // Layar "dashboard" & "welcome" punya penanganan back sendiri.
+                BackHandler(
+                    enabled = currentScreen !in listOf("welcome", "dashboard")
+                ) {
+                    currentScreen = when (currentScreen) {
+                        "login", "register" -> "welcome"
+                        "order_input" -> "laundry_selection"
+                        "top_up_amount" -> "top_up"
+                        else -> "dashboard"
+                    }
+                }
 
                 when (currentScreen) {
                     "welcome" -> WelcomeScreen(
@@ -102,8 +150,28 @@ class MainActivity : ComponentActivity() {
                             }
                         } else {
                             when (userRole) {
-                                "driver" -> DriverDashboardScreen(onLogout = { authViewModel.logout() })
-                                "laundry" -> LaundryDashboardScreen(onLogout = { authViewModel.logout() })
+                                "driver" -> DriverDashboardScreen(
+                                    viewModel = driverViewModel,
+                                    profileName = userName,
+                                    profileEmail = userEmail,
+                                    profilePhone = livePhone,
+                                    profileAddress = liveAddress,
+                                    isSavingProfile = isSavingProfile,
+                                    onSaveProfile = onSaveProfile,
+                                    onLogout = { authViewModel.logout() },
+                                    onDeleteAccount = onDeleteAccount
+                                )
+                                "laundry" -> LaundryDashboardScreen(
+                                    viewModel = laundryViewModel,
+                                    profileName = userName,
+                                    profileEmail = userEmail,
+                                    profilePhone = livePhone,
+                                    profileAddress = liveAddress,
+                                    isSavingProfile = isSavingProfile,
+                                    onSaveProfile = onSaveProfile,
+                                    onLogout = { authViewModel.logout() },
+                                    onDeleteAccount = onDeleteAccount
+                                )
                                 "admin" -> AdminDashboardScreen(onLogout = { authViewModel.logout() })
                                 else -> DashboardScreen(
                                     userName = userName,
@@ -121,7 +189,10 @@ class MainActivity : ComponentActivity() {
                                     onOpenSubscription = { currentScreen = "subscription" },
                                     onTopUp = { currentScreen = "top_up" },
                                     onOpenPlanner = { currentScreen = "laundry_planner" },
-                                    onLogout = { authViewModel.logout() }
+                                    onLogout = { authViewModel.logout() },
+                                    onDeleteAccount = onDeleteAccount,
+                                    isSavingProfile = isSavingProfile,
+                                    onSaveProfile = onSaveProfile
                                 )
                             }
                         }
@@ -132,7 +203,10 @@ class MainActivity : ComponentActivity() {
                     )
                     "laundry_selection" -> LaundrySelectionScreen(
                         onBack = { currentScreen = "dashboard" },
-                        onShopSelected = { currentScreen = "order_input" }
+                        onShopSelected = { shop ->
+                            selectedShop = shop
+                            currentScreen = "order_input"
+                        }
                     )
                     "order_input" -> OrderInputScreen(
                         userName = userName,
@@ -140,6 +214,8 @@ class MainActivity : ComponentActivity() {
                         userAddress = userAddress,
                         isSubscribed = isSubscribed,
                         ordersViewModel = ordersViewModel,
+                        laundryUid = selectedShop?.id ?: "",
+                        laundryName = selectedShop?.name ?: "",
                         onBack = { currentScreen = "laundry_selection" },
                         onConfirmOrder = { currentScreen = "order_processing" }
                     )

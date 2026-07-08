@@ -14,15 +14,23 @@ data class Order(
     val status: String = "",
     val weight: Double = 0.0,
     val estimatedPrice: Long = 0,
-    val serviceFee: Long = 0,    // Biaya Jasa Tetap
-    val deliveryFee: Long = 0,   // Ongkir Tetap
+    val serviceFee: Long = 0,      // Biaya Jasa Tetap
+    val deliveryFee: Long = 0,     // Ongkir Tetap
     val laundrySubtotal: Long = 0, // Harga murni dari laundry (setelah timbang)
     val totalPrice: Long = 0,      // Harga Total Akhir (Subtotal + Jasa + Ongkir)
     val customerName: String = "",
+    val customerPhone: String = "",
+    val address: String = "",
+    val service: String = "",
+    val laundryName: String = "",
     val driverName: String = "",
     val driverPhone: String = "",
     val createdAt: Timestamp? = null,
-    
+
+    // Escrow (per-order, transparan)
+    val escrowHeld: Long = 0,       // dana yang ditahan di escrow untuk order ini
+    val priceAdjustment: Long = 0,  // selisih saat timbang (+ = tambah bayar, - = refund)
+
     // Field untuk Tracking Real-time
     val customerLat: Double = 0.0,
     val customerLng: Double = 0.0,
@@ -32,137 +40,148 @@ data class Order(
     val driverLng: Double = 0.0
 )
 
+/** Hasil proses timbang / cek pembayaran escrow. */
+sealed class WeighOutcome {
+    /** Escrow sudah disesuaikan, order lanjut diproses. adjustment: + tambah bayar, - refund, 0 pas. */
+    data class Processed(val adjustment: Long) : WeighOutcome()
+    /** Saldo customer kurang; draft tersimpan, order ON_HOLD menunggu pembayaran. */
+    data class OnHold(val shortfall: Long, val adjustment: Long) : WeighOutcome()
+}
+
+/**
+ * ESCROW MODEL (per-order, konservatif):
+ *  - Buat order : customer -estimasi, escrow +estimasi, order.escrowHeld = estimasi.
+ *  - Timbang    : selisih = hargaAktual - estimasi.
+ *       selisih <= 0        -> refund/pas: customer +|selisih|, escrow -|selisih|  -> DIPROSES
+ *       selisih > 0 cukup   -> customer -selisih, escrow +selisih                 -> DIPROSES
+ *       selisih > 0 kurang  -> simpan draft (berat+nominal), status ON_HOLD, escrow TIDAK berubah
+ *  - Cek bayar  : ulangi penyesuaian saat saldo cukup                              -> DIPROSES
+ *  - Selesai    : escrow -total, laundry +total, order.escrowHeld = 0              -> SELESAI
+ * Invarian: escrow.totalHold == Σ order.escrowHeld.
+ */
 class OrderRepository {
     private val db = FirebaseFirestore.getInstance()
+    private fun orderRef(id: String) = db.collection("orders").document(id)
+    private fun userRef(uid: String) = db.collection("users").document(uid)
+    private val escrowRef = db.collection("system").document("escrow")
 
-    /**
-     * Fungsi utama untuk update status pesanan dengan logic pembayaran token.
-     */
-    suspend fun updateStatusPesanan(
-        orderId: String, 
-        newStatus: String, 
-        weight: Double? = null, 
-        actualLaundrySubtotal: Long? = null
-    ): Result<Unit> {
-        return try {
-            val orderRef = db.collection("orders").document(orderId)
-            val order = orderRef.get().await().toObject(Order::class.java) 
-                ?: return Result.failure(Exception("Pesanan tidak ditemukan"))
-
-            when (newStatus) {
-                "DITIMBANG" -> {
-                    if (actualLaundrySubtotal == null || weight == null || actualLaundrySubtotal <= 0) {
-                        return Result.failure(Exception("Berat dan harga subtotal laundry harus diisi"))
-                    }
-                    
-                    // Logic: Harga Total Baru = Subtotal Laundry + Biaya Jasa Awal + Ongkir Awal
-                    val totalActualPrice = actualLaundrySubtotal + order.serviceFee + order.deliveryFee
-                    val difference = totalActualPrice - order.estimatedPrice
-                    
-                    processPriceAdjustment(orderId, difference, order.customerUid, totalActualPrice, actualLaundrySubtotal, weight)
-                }
-
-                "SELESAI" -> {
-                    if (order.totalPrice <= 0) return Result.failure(Exception("Data harga pesanan tidak valid"))
-                    processTokenPayment(orderId, order.totalPrice, "ADMIN_SYSTEM", order.laundryUid)
-                }
-
-                "DRIVER_MENGANTAR" -> {
-                    orderRef.update(
-                        "status", "DRIVER_MENGANTAR",
-                        "updatedAt", FieldValue.serverTimestamp()
-                    ).await()
-                    Result.success(Unit)
-                }
-
-                else -> {
-                    orderRef.update(
-                        "status", newStatus,
-                        "updatedAt", FieldValue.serverTimestamp()
-                    ).await()
-                    Result.success(Unit)
-                }
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
+    /** Update status sederhana (mis. driver: menjemput/antar/sampai). */
+    suspend fun updateStatus(orderId: String, newStatus: String): Result<Unit> = try {
+        orderRef(orderId).update(
+            "status", newStatus,
+            "updatedAt", FieldValue.serverTimestamp()
+        ).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
     }
 
-    private suspend fun processPriceAdjustment(
-        orderId: String, 
-        difference: Long, 
-        customerUid: String,
-        totalActualPrice: Long,
-        actualLaundrySubtotal: Long,
-        weight: Double
-    ): Result<Unit> {
+    /** Laundry menimbang & menetapkan harga asli. */
+    suspend fun weighOrder(orderId: String, weight: Double, actualSubtotal: Long): Result<WeighOutcome> {
+        if (actualSubtotal <= 0 || weight <= 0.0) {
+            return Result.failure(Exception("Berat dan subtotal laundry harus diisi"))
+        }
         return try {
-            db.runTransaction { transaction ->
-                val customerRef = db.collection("users").document(customerUid)
-                val orderRef = db.collection("orders").document(orderId)
-                val adminRef = db.collection("system").document("escrow")
+            val outcome = db.runTransaction { tx ->
+                val o = tx.get(orderRef(orderId))
+                val customerUid = o.getString("customerUid") ?: throw Exception("Order tidak valid")
+                val serviceFee = o.getLong("serviceFee") ?: 0L
+                val deliveryFee = o.getLong("deliveryFee") ?: 0L
+                val estimated = o.getLong("estimatedPrice") ?: 0L
+                val totalActual = actualSubtotal + serviceFee + deliveryFee
+                val adjustment = totalActual - estimated
 
-                if (difference > 0) {
-                    val customerSnap = transaction.get(customerRef)
-                    val balance = customerSnap.getLong("balance") ?: 0L
-                    if (balance < difference) {
-                        throw Exception("Saldo tidak cukup untuk membayar selisih Rp $difference")
-                    }
-                    transaction.update(customerRef, "balance", FieldValue.increment(-difference))
-                    transaction.set(adminRef, mapOf("totalHold" to FieldValue.increment(difference)), SetOptions.merge())
-                } else if (difference < 0) {
-                    transaction.update(customerRef, "balance", FieldValue.increment(-difference))
-                    transaction.set(adminRef, mapOf("totalHold" to FieldValue.increment(difference)), SetOptions.merge())
+                val balance = tx.get(userRef(customerUid)).getLong("balance") ?: 0L
+
+                if (adjustment > 0 && balance < adjustment) {
+                    // Draft ON_HOLD: berat & nominal disimpan, escrow BELUM diubah
+                    tx.update(orderRef(orderId), mapOf(
+                        "status" to "ON_HOLD",
+                        "weight" to weight,
+                        "laundrySubtotal" to actualSubtotal,
+                        "totalPrice" to totalActual,
+                        "priceAdjustment" to adjustment,
+                        "updatedAt" to FieldValue.serverTimestamp()
+                    ))
+                    WeighOutcome.OnHold(shortfall = adjustment - balance, adjustment = adjustment)
+                } else {
+                    applyAdjustment(tx, orderId, customerUid, adjustment, totalActual, weight, actualSubtotal)
+                    WeighOutcome.Processed(adjustment)
                 }
-
-                transaction.update(orderRef, mapOf(
-                    "status" to "DIPROSES",
-                    "laundrySubtotal" to actualLaundrySubtotal,
-                    "totalPrice" to totalActualPrice,
-                    "weight" to weight,
-                    "updatedAt" to FieldValue.serverTimestamp()
-                ))
             }.await()
-            Result.success(Unit)
+            Result.success(outcome)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    private suspend fun processTokenPayment(
-        orderId: String, 
-        amount: Long, 
-        dari: String, 
-        ke: String
-    ): Result<Unit> {
+    /** Cek ulang pembayaran order ON_HOLD; jika saldo cukup -> DIPROSES. */
+    suspend fun confirmHold(orderId: String): Result<WeighOutcome> {
         return try {
-            db.runTransaction { transaction ->
-                val orderRef = db.collection("orders").document(orderId)
-                
-                if (dari != "ADMIN_SYSTEM") {
-                    val pengirimRef = db.collection("users").document(dari)
-                    val pengirimSnap = transaction.get(pengirimRef)
-                    val saldoSekarang = pengirimSnap.getLong("balance") ?: 0L
-                    
-                    if (saldoSekarang < amount) {
-                        throw Exception("Saldo Token tidak mencukupi")
-                    }
-                    transaction.update(pengirimRef, "balance", FieldValue.increment(-amount))
-                } else {
-                    val adminRef = db.collection("system").document("escrow")
-                    transaction.set(adminRef, mapOf("totalHold" to FieldValue.increment(-amount)), SetOptions.merge())
-                }
+            val outcome = db.runTransaction { tx ->
+                val o = tx.get(orderRef(orderId))
+                val customerUid = o.getString("customerUid") ?: throw Exception("Order tidak valid")
+                val adjustment = o.getLong("priceAdjustment") ?: 0L
+                val totalActual = o.getLong("totalPrice") ?: 0L
+                val weight = o.getDouble("weight") ?: 0.0
+                val subtotal = o.getLong("laundrySubtotal") ?: 0L
+                val balance = tx.get(userRef(customerUid)).getLong("balance") ?: 0L
 
-                if (ke != "ADMIN_SYSTEM") {
-                    val penerimaRef = db.collection("users").document(ke)
-                    transaction.update(penerimaRef, "balance", FieldValue.increment(amount))
+                if (adjustment > 0 && balance < adjustment) {
+                    WeighOutcome.OnHold(shortfall = adjustment - balance, adjustment = adjustment)
                 } else {
-                    val adminRef = db.collection("system").document("escrow")
-                    transaction.set(adminRef, mapOf("totalHold" to FieldValue.increment(amount)), SetOptions.merge())
+                    applyAdjustment(tx, orderId, customerUid, adjustment, totalActual, weight, subtotal)
+                    WeighOutcome.Processed(adjustment)
                 }
+            }.await()
+            Result.success(outcome)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
-                transaction.update(orderRef, mapOf(
+    /** Terapkan penyesuaian escrow lalu set order -> DIPROSES (dipanggil dalam transaksi). */
+    private fun applyAdjustment(
+        tx: com.google.firebase.firestore.Transaction,
+        orderId: String,
+        customerUid: String,
+        adjustment: Long,
+        totalActual: Long,
+        weight: Double,
+        actualSubtotal: Long
+    ) {
+        if (adjustment != 0L) {
+            // adjustment > 0 -> potong saldo customer; < 0 -> kembalikan (increment(-adjustment))
+            tx.update(userRef(customerUid), "balance", FieldValue.increment(-adjustment))
+            tx.set(escrowRef, mapOf("totalHold" to FieldValue.increment(adjustment)), SetOptions.merge())
+        }
+        tx.update(orderRef(orderId), mapOf(
+            "status" to "DIPROSES",
+            "weight" to weight,
+            "laundrySubtotal" to actualSubtotal,
+            "totalPrice" to totalActual,
+            "priceAdjustment" to adjustment,
+            "escrowHeld" to totalActual,
+            "updatedAt" to FieldValue.serverTimestamp()
+        ))
+    }
+
+    /** Driver menyelesaikan pengantaran akhir: dana escrow dibayarkan ke laundry -> SELESAI. */
+    suspend fun completeOrder(orderId: String): Result<Unit> {
+        return try {
+            db.runTransaction { tx ->
+                val o = tx.get(orderRef(orderId))
+                val laundryUid = o.getString("laundryUid") ?: ""
+                val total = o.getLong("totalPrice") ?: 0L
+                if (total <= 0) throw Exception("Data harga pesanan tidak valid")
+
+                tx.set(escrowRef, mapOf("totalHold" to FieldValue.increment(-total)), SetOptions.merge())
+                if (laundryUid.isNotEmpty()) {
+                    tx.update(userRef(laundryUid), "balance", FieldValue.increment(total))
+                }
+                tx.update(orderRef(orderId), mapOf(
                     "status" to "SELESAI",
+                    "escrowHeld" to 0L,
                     "updatedAt" to FieldValue.serverTimestamp()
                 ))
             }.await()

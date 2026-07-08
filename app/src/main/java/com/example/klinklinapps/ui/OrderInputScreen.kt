@@ -60,6 +60,8 @@ fun OrderInputScreen(
     userAddress: String,
     isSubscribed: Boolean,
     ordersViewModel: OrdersViewModel,
+    laundryUid: String = "",
+    laundryName: String = "",
     onBack: () -> Unit,
     onConfirmOrder: () -> Unit
 ) {
@@ -181,6 +183,8 @@ fun OrderInputScreen(
                                     userName = userName,
                                     userPhone = userPhone,
                                     userAddress = userAddress,
+                                    laundryUid = laundryUid,
+                                    laundryName = laundryName,
                                     onSuccess = onConfirmOrder
                                 )
                             },

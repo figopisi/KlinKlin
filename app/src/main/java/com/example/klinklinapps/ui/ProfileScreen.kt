@@ -1,229 +1,229 @@
 package com.example.klinklinapps.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.klinklinapps.ui.theme.*
 
+/**
+ * Halaman kelola profil — dipakai customer & driver (dan laundry).
+ * Bisa edit nama/telepon/alamat, ganti password (opsional), logout, dan hapus akun.
+ * onBack null -> dipakai sebagai tab (tanpa tombol back).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun KlinProfileScreen(
-    userName: String,
-    userEmail: String,
-    userPhone: String,
-    userAddress: String,
-    subscriptionType: String?,
-    onBack: () -> Unit,
+fun ProfileManagementScreen(
+    initialName: String,
+    email: String,
+    initialPhone: String,
+    initialAddress: String,
+    roleLabel: String,
+    isSaving: Boolean,
+    onSave: (name: String, phone: String, address: String, currentPassword: String, newPassword: String) -> Unit,
+    onDeleteAccount: () -> Unit,
     onLogout: () -> Unit,
-    onOpenSubscription: () -> Unit
+    onBack: (() -> Unit)? = null
 ) {
-    var isEditing by remember { mutableStateOf(false) }
-    
-    // States for editing
-    var editedName by remember { mutableStateOf(userName) }
-    var editedPhone by remember { mutableStateOf(userPhone) }
-    var editedAddress by remember { mutableStateOf(userAddress) }
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    var phone by remember(initialPhone) { mutableStateOf(initialPhone) }
+    var address by remember(initialAddress) { mutableStateOf(initialAddress) }
+    var currentPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        LogoutConfirmDialog(
+            onDismiss = { showLogoutDialog = false },
+            onConfirm = {
+                showLogoutDialog = false
+                onLogout()
+            }
+        )
+    }
+
+    if (showDeleteDialog) {
+        DeleteAccountDialog(
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                showDeleteDialog = false
+                onDeleteAccount()
+            }
+        )
+    }
+
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = KlinKlinTheme.Primary,
+        unfocusedBorderColor = KlinKlinTheme.Secondary,
+        focusedLabelColor = KlinKlinTheme.Primary,
+        cursorColor = KlinKlinTheme.Primary,
+        focusedContainerColor = Color.White,
+        unfocusedContainerColor = Color.White,
+        focusedTextColor = KlinKlinTheme.Foreground,
+        unfocusedTextColor = KlinKlinTheme.Foreground
+    )
 
     Scaffold(
+        containerColor = KlinKlinTheme.Background,
         topBar = {
             TopAppBar(
-                title = { Text("Profil Saya", fontWeight = FontWeight.Black) },
-                actions = {
-                    if (!isEditing) {
-                        IconButton(onClick = { isEditing = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit Profil", tint = BrandBlue)
-                        }
-                        IconButton(onClick = onLogout) {
-                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Gray500)
-                        }
-                    } else {
-                        IconButton(onClick = { isEditing = false }) {
-                            Icon(Icons.Default.Close, contentDescription = "Batal", tint = Color.Red)
-                        }
-                        IconButton(onClick = { 
-                            isEditing = false 
-                        }) {
-                            Icon(Icons.Default.Check, contentDescription = "Simpan", tint = Color(0xFF4CAF50))
+                title = { Text("Kelola Profil", fontWeight = FontWeight.Black, color = KlinKlinTheme.Foreground) },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Kembali", tint = KlinKlinTheme.Primary)
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         }
-    ) { paddingValues ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Gray100)
-                .padding(paddingValues)
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(horizontal = 24.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Profile Header / Avatar (Reverted to Initials)
+            // Avatar + email + role
             Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .clip(CircleShape)
-                    .background(BrandBlue),
+                modifier = Modifier.size(88.dp).clip(CircleShape).background(KlinKlinTheme.Primary),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = editedName.take(1).uppercase(),
-                    color = White,
-                    fontSize = 36.sp,
-                    fontWeight = FontWeight.Bold
+                    name.take(1).ifBlank { "?" }.uppercase(),
+                    color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Black
                 )
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            if (!isEditing) {
-                Text(text = editedName, fontSize = 20.sp, fontWeight = FontWeight.Black, color = Gray800)
-                Text(text = userEmail, fontSize = 14.sp, color = Gray500)
-            } else {
-                Text(text = "Sedang Mengubah Data", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = BrandBlue)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(email, fontSize = 14.sp, color = KlinKlinTheme.MutedForeground)
+            Surface(color = KlinKlinTheme.Secondary, shape = RoundedCornerShape(8.dp)) {
+                Text(
+                    roleLabel,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    color = KlinKlinTheme.Primary, fontSize = 11.sp, fontWeight = FontWeight.Bold
+                )
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            // Personal Info Section
-            ProfileSectionTitle("Informasi Akun")
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = White)
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    if (isEditing) {
-                        OutlinedTextField(
-                            value = editedName,
-                            onValueChange = { editedName = it },
-                            label = { Text("Nama Lengkap") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedTextField(
-                            value = editedPhone,
-                            onValueChange = { editedPhone = it },
-                            label = { Text("Nomor Telepon") },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedTextField(
-                            value = editedAddress,
-                            onValueChange = { editedAddress = it },
-                            label = { Text("Alamat Lengkap") },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 2,
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        OutlinedTextField(
-                            value = newPassword,
-                            onValueChange = { newPassword = it },
-                            label = { Text("Password Baru (Kosongkan jika tidak ganti)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            visualTransformation = PasswordVisualTransformation(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    } else {
-                        ProfileInfoItem(Icons.Default.Person, "Nama", editedName)
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Gray100)
-                        ProfileInfoItem(Icons.Default.Phone, "Nomor Telepon", editedPhone)
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = Gray100)
-                        ProfileInfoItem(Icons.Default.LocationOn, "Alamat Pengiriman", editedAddress)
-                    }
-                }
-            }
-            
-            if (!isEditing) {
-                Spacer(modifier = Modifier.height(24.dp))
-                ProfileSectionTitle("Status Berlangganan")
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onOpenSubscription() },
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (subscriptionType != null) SunYellow.copy(alpha = 0.1f) else White
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    OutlinedTextField(
+                        value = name, onValueChange = { name = it },
+                        label = { Text("Nama Lengkap") },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                        singleLine = true, colors = fieldColors
                     )
-                ) {
-                    Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = if (subscriptionType != null) Icons.Default.WorkspacePremium else Icons.Default.Info,
-                            contentDescription = null,
-                            tint = if (subscriptionType != null) SunYellowVariant else Gray500
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (subscriptionType != null) "KlinKlin Plus+" else "Belum Berlangganan",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp,
-                                color = if (subscriptionType != null) NavyBlue else Gray800
-                            )
-                            Text(
-                                text = if (subscriptionType != null) "Paket: $subscriptionType" else "Aktifkan untuk nikmati fitur hemat",
-                                fontSize = 13.sp,
-                                color = if (subscriptionType != null) NavyBlue.copy(alpha = 0.7f) else Gray500
-                            )
+                    OutlinedTextField(
+                        value = phone, onValueChange = { phone = it },
+                        label = { Text("Nomor Telepon") },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                        singleLine = true, colors = fieldColors
+                    )
+                    OutlinedTextField(
+                        value = address, onValueChange = { address = it },
+                        label = { Text("Alamat") },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                        minLines = 2, colors = fieldColors
+                    )
+                    HorizontalDivider(color = KlinKlinTheme.Background, thickness = 1.dp)
+                    Text(
+                        "Ganti Password (opsional)",
+                        fontSize = 12.sp, fontWeight = FontWeight.Bold, color = KlinKlinTheme.MutedForeground
+                    )
+                    OutlinedTextField(
+                        value = currentPassword, onValueChange = { currentPassword = it },
+                        label = { Text("Password Saat Ini") },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                        singleLine = true, colors = fieldColors,
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation()
+                    )
+                    OutlinedTextField(
+                        value = newPassword, onValueChange = { newPassword = it },
+                        label = { Text("Password Baru") },
+                        modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                        singleLine = true, colors = fieldColors,
+                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(
+                                    if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                    contentDescription = null, tint = KlinKlinTheme.MutedForeground
+                                )
+                            }
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Gray500)
-                    }
+                    )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-        }
-    }
-}
 
-@Composable
-fun ProfileSectionTitle(title: String) {
-    Text(
-        text = title,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.ExtraBold,
-        color = BrandBlue,
-        modifier = Modifier.fillMaxWidth().padding(start = 12.dp, bottom = 8.dp)
-    )
-}
+            Spacer(modifier = Modifier.height(20.dp))
 
-@Composable
-fun ProfileInfoItem(icon: ImageVector, label: String, value: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier.size(36.dp).background(BrandBlueLight, CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = BrandBlue, modifier = Modifier.size(18.dp))
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text = label, fontSize = 11.sp, color = Gray500)
-            Text(text = value, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Gray800)
+            Button(
+                onClick = { onSave(name, phone, address, currentPassword, newPassword) },
+                enabled = !isSaving,
+                modifier = Modifier.fillMaxWidth().height(54.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = KlinKlinTheme.Primary)
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(22.dp), strokeWidth = 2.5.dp)
+                } else {
+                    Text("Simpan Perubahan", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            OutlinedButton(
+                onClick = { showLogoutDialog = true },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = KlinKlinTheme.Foreground)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Keluar", fontWeight = FontWeight.Bold)
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TextButton(
+                onClick = { showDeleteDialog = true },
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Hapus Akun Permanen", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.height(120.dp))
         }
     }
 }

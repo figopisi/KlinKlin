@@ -42,12 +42,12 @@ data class LaundryShop(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LaundrySelectionScreen(onBack: () -> Unit, onShopSelected: (LaundryShop) -> Unit) {
+    // Laundry partner ASLI (akun Firebase role=laundry). id = uid akun laundry,
+    // dipakai untuk merutekan order langsung ke laundry yang dipilih.
     val shops = listOf(
-        LaundryShop("1", "KlinKlin Express", 4.9, "0.5 km", isRecommended = true),
-        LaundryShop("2", "Laundry Spongebob", 4.7, "1.2 km"),
-        LaundryShop("3", "Clean & Fresh Laundry", 4.5, "2.0 km"),
-        LaundryShop("4", "Mutiara Laundry", 4.8, "0.8 km"),
-        LaundryShop("5", "Bubble Pop Laundry", 4.6, "1.5 km")
+        LaundryShop("1CMCbOrBGyYnhwqXLR31gMrGF7S2", "KlinKlin Express", 4.9, "0.5 km", isRecommended = true),
+        LaundryShop("SMZpaW3iA8PmkRZVWkojD5Jofs72", "Mutiara Laundry", 4.8, "0.8 km"),
+        LaundryShop("WP1Q2yAoguNOESFbXPLfQ9YLeyC3", "Clean & Fresh Laundry", 4.5, "2.0 km")
     )
 
     Scaffold(

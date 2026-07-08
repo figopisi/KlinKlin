@@ -3,6 +3,7 @@ package com.example.klinklinapps.ui
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FieldValue
@@ -31,6 +32,19 @@ class AuthViewModel : ViewModel() {
     private val _balance = mutableStateOf(0L)
     val balance: State<Long> = _balance
 
+    // Data profil live dari Firestore (untuk halaman kelola profil)
+    private val _userName = mutableStateOf("")
+    val userName: State<String> = _userName
+
+    private val _userPhone = mutableStateOf("")
+    val userPhone: State<String> = _userPhone
+
+    private val _userAddress = mutableStateOf("")
+    val userAddress: State<String> = _userAddress
+
+    private val _isSavingProfile = mutableStateOf(false)
+    val isSavingProfile: State<Boolean> = _isSavingProfile
+
     init {
         checkUserRole()
     }
@@ -52,7 +66,10 @@ class AuthViewModel : ViewModel() {
                     
                     if (snapshot != null && snapshot.exists()) {
                         _userRole.value = snapshot.getString("role") ?: "customer"
-                        
+                        _userName.value = snapshot.getString("name") ?: ""
+                        _userPhone.value = snapshot.getString("phone") ?: ""
+                        _userAddress.value = snapshot.getString("address") ?: ""
+
                         // Cek jika field balance tidak ada, inisialisasi ke 0 di DB
                         if (!snapshot.contains("balance")) {
                             db.collection("users").document(user.uid).set(
@@ -149,6 +166,105 @@ class AuthViewModel : ViewModel() {
         _currentUser.value = null
         _userRole.value = null
         _balance.value = 0L
+    }
+
+    /**
+     * Update data profil (nama, telepon, alamat) + opsional ganti password.
+     * Ganti password memakai re-authenticate (pakai password lama) agar user
+     * TETAP login tanpa harus login ulang manual.
+     */
+    fun updateProfile(
+        name: String,
+        phone: String,
+        address: String,
+        currentPassword: String,
+        newPassword: String,
+        onDone: (Boolean, String?) -> Unit
+    ) {
+        val user = auth.currentUser
+        if (user == null) {
+            onDone(false, "Sesi tidak ditemukan, silakan login ulang.")
+            return
+        }
+        _isSavingProfile.value = true
+        db.collection("users").document(user.uid).update(
+            mapOf(
+                "name" to name.trim(),
+                "phone" to phone.trim(),
+                "address" to address.trim()
+            )
+        ).addOnSuccessListener {
+            if (newPassword.isBlank()) {
+                _isSavingProfile.value = false
+                onDone(true, null)
+                return@addOnSuccessListener
+            }
+            val email = user.email
+            if (email.isNullOrBlank() || currentPassword.isBlank()) {
+                _isSavingProfile.value = false
+                onDone(false, "Profil tersimpan. Untuk ganti password, isi juga 'Password Saat Ini'.")
+                return@addOnSuccessListener
+            }
+            // Re-auth dulu agar tidak perlu login ulang manual
+            val credential = EmailAuthProvider.getCredential(email, currentPassword)
+            user.reauthenticate(credential)
+                .addOnSuccessListener {
+                    user.updatePassword(newPassword)
+                        .addOnSuccessListener {
+                            _isSavingProfile.value = false
+                            onDone(true, null)
+                        }
+                        .addOnFailureListener { e ->
+                            _isSavingProfile.value = false
+                            onDone(false, "Profil tersimpan, tapi password gagal diubah: ${e.localizedMessage}")
+                        }
+                }
+                .addOnFailureListener {
+                    _isSavingProfile.value = false
+                    onDone(false, "Profil tersimpan, tapi 'Password Saat Ini' salah — password tidak diubah.")
+                }
+        }.addOnFailureListener { e ->
+            _isSavingProfile.value = false
+            onDone(false, e.localizedMessage ?: "Gagal menyimpan profil")
+        }
+    }
+
+    /**
+     * Hapus akun permanen: data Firestore + akun Auth.
+     * Berlaku untuk semua role (customer/driver/laundry).
+     */
+    fun deleteAccount(onSuccess: () -> Unit, onError: (String) -> Unit) {
+        val user = auth.currentUser
+        if (user == null) {
+            onError("Sesi tidak ditemukan, silakan login ulang.")
+            return
+        }
+        val uid = user.uid
+        userListener?.remove()
+
+        db.collection("users").document(uid).delete()
+            .addOnSuccessListener {
+                user.delete()
+                    .addOnSuccessListener {
+                        _currentUser.value = null
+                        _userRole.value = null
+                        _balance.value = 0L
+                        onSuccess()
+                    }
+                    .addOnFailureListener { e ->
+                        // Auth.delete() butuh login baru-baru ini
+                        auth.signOut()
+                        _currentUser.value = null
+                        _userRole.value = null
+                        onError(
+                            "Data akun terhapus, namun sesi login perlu diperbarui: " +
+                                "${e.localizedMessage ?: "silakan login ulang untuk menghapus tuntas."}"
+                        )
+                    }
+            }
+            .addOnFailureListener { e ->
+                onError(e.localizedMessage ?: "Gagal menghapus data akun")
+            }
     }
 
     override fun onCleared() {

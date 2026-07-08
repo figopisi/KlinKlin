@@ -48,10 +48,10 @@ fun LaundryPlannerScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Smart Laundry Planner", fontWeight = FontWeight.Bold) },
+                title = { Text("Smart Laundry Planner", fontWeight = FontWeight.Bold, color = KlinKlinTheme.Foreground) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = KlinKlinTheme.Primary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
@@ -60,13 +60,13 @@ fun LaundryPlannerScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = BrandBlue,
+                containerColor = KlinKlinTheme.Primary,
                 contentColor = White
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Plan")
             }
         },
-        containerColor = Gray100
+        containerColor = KlinKlinTheme.Background
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             if (plans.isEmpty() && !isLoading) {
@@ -75,9 +75,10 @@ fun LaundryPlannerScreen(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(64.dp), tint = Gray500)
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(64.dp), tint = KlinKlinTheme.Primary.copy(alpha = 0.4f))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Belum ada rencana laundry", color = Gray500)
+                    Text("Belum ada rencana laundry", color = KlinKlinTheme.MutedForeground, fontWeight = FontWeight.Medium)
+                    Text("Tekan + untuk menambah rencana", color = KlinKlinTheme.MutedForeground.copy(0.6f), fontSize = 13.sp)
                 }
             } else {
                 LazyColumn(
@@ -92,7 +93,7 @@ fun LaundryPlannerScreen(
             }
 
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = BrandBlue)
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = KlinKlinTheme.Primary)
             }
         }
 
@@ -122,12 +123,12 @@ fun LaundryPlanCard(plan: LaundryPlan) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Event, contentDescription = null, tint = BrandBlue)
+                Icon(Icons.Default.Event, contentDescription = null, tint = KlinKlinTheme.Primary)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(plan.eventName, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                Text(plan.eventName, fontWeight = FontWeight.Black, fontSize = 18.sp, color = KlinKlinTheme.Foreground)
                 Spacer(modifier = Modifier.weight(1f))
                 Surface(
-                    color = if (plan.serviceType == "Satuan/Jas") SunYellow.copy(alpha = 0.2f) else BrandBlueLight,
+                    color = if (plan.serviceType == "Satuan/Jas") SunYellow.copy(alpha = 0.2f) else KlinKlinTheme.Secondary,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
@@ -135,12 +136,12 @@ fun LaundryPlanCard(plan: LaundryPlan) {
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (plan.serviceType == "Satuan/Jas") Color(0xFFFFA000) else BrandBlue
+                        color = if (plan.serviceType == "Satuan/Jas") Color(0xFFFFA000) else KlinKlinTheme.Primary
                     )
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            HorizontalDivider(color = Gray100)
+            HorizontalDivider(color = KlinKlinTheme.Background)
             Spacer(modifier = Modifier.height(12.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
@@ -180,26 +181,37 @@ fun AddPlanDialog(
                     value = eventName,
                     onValueChange = { eventName = it },
                     label = { Text("Nama Acara (misal: Kondangan)") },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = KlinKlinTheme.Primary,
+                        focusedLabelColor = KlinKlinTheme.Primary,
+                        cursorColor = KlinKlinTheme.Primary
+                    )
                 )
-                
+
                 OutlinedButton(
                     onClick = { showDatePicker = true },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = KlinKlinTheme.Primary)
                 ) {
                     val selectedDate = datePickerState.selectedDateMillis?.let {
                         Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
                             .format(DateTimeFormatter.ofPattern("dd MMM yyyy"))
                     } ?: "Pilih Tanggal Acara"
+                    Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(selectedDate)
                 }
 
-                Text("Tipe Layanan:", fontWeight = FontWeight.Bold)
+                Text("Tipe Layanan:", fontWeight = FontWeight.Bold, color = KlinKlinTheme.Foreground)
+                val radioColors = RadioButtonDefaults.colors(selectedColor = KlinKlinTheme.Primary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(selected = serviceType == "Kiloan", onClick = { serviceType = "Kiloan" })
+                    RadioButton(selected = serviceType == "Kiloan", onClick = { serviceType = "Kiloan" }, colors = radioColors)
                     Text("Kiloan (3 hari)")
                     Spacer(modifier = Modifier.width(16.dp))
-                    RadioButton(selected = serviceType == "Satuan/Jas", onClick = { serviceType = "Satuan/Jas" })
+                    RadioButton(selected = serviceType == "Satuan/Jas", onClick = { serviceType = "Satuan/Jas" }, colors = radioColors)
                     Text("Satuan/Jas (5 hari)")
                 }
             }
@@ -212,24 +224,39 @@ fun AddPlanDialog(
                     }
                 },
                 enabled = eventName.isNotBlank() && datePickerState.selectedDateMillis != null,
-                colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = KlinKlinTheme.Primary)
             ) {
                 Text("Simpan")
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Batal") }
-        }
+            TextButton(onClick = onDismiss) { Text("Batal", color = KlinKlinTheme.MutedForeground) }
+        },
+        containerColor = White,
+        titleContentColor = KlinKlinTheme.Foreground
     )
 
     if (showDatePicker) {
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("OK") }
-            }
+                TextButton(onClick = { showDatePicker = false }) { Text("OK", color = KlinKlinTheme.Primary, fontWeight = FontWeight.Bold) }
+            },
+            colors = DatePickerDefaults.colors(containerColor = White)
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(
+                    containerColor = White,
+                    selectedDayContainerColor = KlinKlinTheme.Primary,
+                    selectedDayContentColor = White,
+                    todayDateBorderColor = KlinKlinTheme.Primary,
+                    todayContentColor = KlinKlinTheme.Primary,
+                    selectedYearContainerColor = KlinKlinTheme.Primary,
+                    selectedYearContentColor = White,
+                    currentYearContentColor = KlinKlinTheme.Primary
+                )
+            )
         }
     }
 }

@@ -50,8 +50,11 @@ private val KlinError = Color(0xFFEF5350)
 fun OrderDetailScreen(
     order: Order,
     onBack: () -> Unit,
-    onFinishOrder: () -> Unit
+    onFinishOrder: () -> Unit,
+    onOpenChat: () -> Unit = {}
 ) {
+    // Chat driver hanya aktif saat driver sedang menangani order (sudah di-assign & belum selesai)
+    val driverActive = order.driverUid.isNotEmpty() && order.status != "SELESAI"
     val finalPrice = if (order.totalPrice > 0) order.totalPrice
     else if (order.laundrySubtotal > 0) (order.laundrySubtotal + order.serviceFee + order.deliveryFee)
     else 0L
@@ -351,8 +354,8 @@ fun OrderDetailScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // DRIVER INFO - Modern Card
-            if (order.driverPhone.isNotEmpty() || order.status.contains("DRIVER")) {
+            // DRIVER INFO - Modern Card (muncul saat driver sudah handle order)
+            if (driverActive || order.driverPhone.isNotEmpty()) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -397,15 +400,19 @@ fun OrderDetailScreen(
                             )
                         }
                         IconButton(
-                            onClick = { /* Chat */ },
+                            onClick = onOpenChat,
+                            enabled = driverActive,
                             modifier = Modifier
                                 .size(44.dp)
-                                .background(KlinSecondary, CircleShape)
+                                .background(
+                                    if (driverActive) KlinSecondary else KlinSecondary.copy(0.4f),
+                                    CircleShape
+                                )
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.Chat,
                                 contentDescription = "Chat",
-                                tint = KlinPrimary,
+                                tint = if (driverActive) KlinPrimary else KlinTextSub,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -499,9 +506,11 @@ fun detailShouldShowTracking(status: String): Boolean =
     status in listOf(
         "MENUNGGU_PICKUP",
         "DRIVER_MENJEMPUT",
+        "DIANTAR_KE_LAUNDRY",
         "DI_LAUNDRY",
         "DRIVER_MENGANTAR",
-        "DIPROSES"
+        "DIPROSES",
+        "MENUNGGU_DIANTAR"
     )
 
 @Composable
