@@ -82,7 +82,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                var hasActiveOrder by remember { mutableStateOf(false) }
                 var selectedTopUpMethod by remember { mutableStateOf<TopUpMethod?>(null) }
                 var selectedShop by remember { mutableStateOf<LaundryShop?>(null) }
 
@@ -177,7 +176,6 @@ class MainActivity : ComponentActivity() {
                                     userPhone = userPhone,
                                     userAddress = userAddress,
                                     balance = balance.toInt(),
-                                    hasActiveOrder = hasActiveOrder,
                                     ordersViewModel = ordersViewModel,
                                     chatViewModel = chatViewModel,
                                     currentUserId = currentUserId,        // ← BARU
@@ -215,10 +213,7 @@ class MainActivity : ComponentActivity() {
                         onConfirmOrder = { currentScreen = "order_processing" }
                     )
                     "order_processing" -> OrderProcessingScreen(
-                        onFinish = {
-                            hasActiveOrder = true
-                            currentScreen = "dashboard"
-                        }
+                        onFinish = { currentScreen = "dashboard" }
                     )
                     "top_up" -> TopUpScreen(
                         onBack = { currentScreen = "dashboard" },

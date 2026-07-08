@@ -140,14 +140,22 @@ fun HomeHero(
             .padding(horizontal = 24.dp)
             .padding(top = 52.dp, bottom = 24.dp)
     ) {
-        // Brand row: logo KlinKlin (outline putih, tanpa wadah) + nama app + notifikasi
+        // Brand row: logo KlinKlin dalam lingkaran putih + nama app + notifikasi
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Image(
-                painter = painterResource(id = R.drawable.logo_klinklin_outline),
-                contentDescription = "Logo KlinKlin",
-                modifier = Modifier.size(48.dp),
-                contentScale = ContentScale.Fit
-            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.logo_klinklin),
+                    contentDescription = "Logo KlinKlin",
+                    modifier = Modifier.size(32.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1019,6 +1027,8 @@ fun KlinOrdersScreen(
     onChat: (Order) -> Unit = {}
 ) {
     val orders by ordersViewModel.orders
+    val activeOrders = orders.filter { it.status != "SELESAI" }
+    val historyOrders = orders.filter { it.status == "SELESAI" }
 
     LazyColumn(
         modifier = Modifier
@@ -1029,7 +1039,7 @@ fun KlinOrdersScreen(
     ) {
         item {
             Text(
-                "Riwayat Pesanan",
+                "Pesanan Saya",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
                 color = KlinKlinTheme.Foreground
@@ -1065,8 +1075,17 @@ fun KlinOrdersScreen(
                 }
             }
         } else {
-            items(orders) { order ->
-                KlinCustomerOrderCard(order, onClick = { onClick(order) }, onChat = { onChat(order) })
+            if (activeOrders.isNotEmpty()) {
+                item { SectionTitle("Sedang Berjalan") }
+                items(activeOrders) { order ->
+                    KlinCustomerOrderCard(order, onClick = { onClick(order) }, onChat = { onChat(order) })
+                }
+            }
+            if (historyOrders.isNotEmpty()) {
+                item { SectionTitle("Riwayat") }
+                items(historyOrders) { order ->
+                    KlinCustomerOrderCard(order, onClick = { onClick(order) }, onChat = { onChat(order) })
+                }
             }
         }
     }
@@ -1620,7 +1639,6 @@ fun DashboardScreen(
     userPhone: String,
     userAddress: String,
     balance: Int,
-    hasActiveOrder: Boolean,
     ordersViewModel: OrdersViewModel,
     chatViewModel: ChatViewModel,
     currentUserId: String = "",
@@ -1637,6 +1655,8 @@ fun DashboardScreen(
     var selectedPromo by remember { mutableStateOf<PromoData?>(null) }
     val reminder by ordersViewModel.reminder
     val orders by ordersViewModel.orders
+    // Status pesanan aktif dihitung dari data asli, bukan flag sesi
+    val hasActiveOrder = orders.any { it.status != "SELESAI" }
 
     val services = listOf(
         Service("Cuci Lipat", "Bersih & Harum", Icons.Default.LocalLaundryService, KlinKlinTheme.ServiceBg1),
@@ -1711,7 +1731,10 @@ fun DashboardScreen(
             PromoDetailDialog(
                 promo = promo,
                 onDismiss = { selectedPromo = null },
-                onUse = { onPlaceOrder() }
+                onUse = {
+                    selectedPromo = null
+                    onPlaceOrder()
+                }
             )
         }
 

@@ -188,6 +188,7 @@ fun OrderInputScreen(
                                     onSuccess = onConfirmOrder
                                 )
                             },
+                            enabled = !isProcessing,
                             modifier = Modifier
                                 .height(60.dp)
                                 .width(150.dp)
@@ -201,18 +202,26 @@ fun OrderInputScreen(
                             ),
                             shape = RoundedCornerShape(20.dp)
                         ) {
-                            Icon(
-                                Icons.Default.ShoppingCart,
-                                contentDescription = null,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Pesan",
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                fontSize = 15.sp
-                            )
+                            if (isProcessing) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(22.dp),
+                                    strokeWidth = 2.5.dp
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Default.ShoppingCart,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Pesan",
+                                    fontWeight = FontWeight.Black,
+                                    color = Color.White,
+                                    fontSize = 15.sp
+                                )
+                            }
                         }
                     }
                 }
