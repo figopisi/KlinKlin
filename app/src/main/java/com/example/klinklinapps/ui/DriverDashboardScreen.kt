@@ -1,6 +1,6 @@
 package com.example.klinklinapps.ui
 
-  import androidx.compose.foundation.background
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -24,6 +24,7 @@ import android.app.Activity
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import com.example.klinklinapps.data.Order
+import com.google.firebase.firestore.FirebaseFirestore
 
 private val DrvBg = Color(0xFFF0F7FF)
 private val DrvPrimary = Color(0xFF5B9BD5)
@@ -71,11 +72,12 @@ fun DriverDashboardScreen(
     val availableOrders by viewModel.availableOrders
     val myOrders by viewModel.myOrders
     val deliveryOrders by viewModel.deliveryOrders
+    val finishedOrders by viewModel.finishedOrders
     val driverName by viewModel.driverName
     val isProcessing by viewModel.isProcessing
     val errorMessage by viewModel.errorMessage
 
-    var selectedTab by remember { mutableStateOf(0) } // 0 = order masuk, 1 = order aktif
+    var selectedTab by remember { mutableStateOf(0) } // 0 = order masuk, 1 = order aktif, 2 = diantar, 3 = riwayat
     var chatOrder by remember { mutableStateOf<Order?>(null) }
     var lastBackPress by remember { mutableStateOf(0L) }
     var showProfile by remember { mutableStateOf(false) }
@@ -200,6 +202,7 @@ fun DriverDashboardScreen(
                 DriverTab("Masuk", availableOrders.size, selectedTab == 0, Modifier.weight(1f)) { selectedTab = 0 }
                 DriverTab("Berjalan", myOrders.size, selectedTab == 1, Modifier.weight(1f)) { selectedTab = 1 }
                 DriverTab("Diantar", deliveryOrders.size, selectedTab == 2, Modifier.weight(1f)) { selectedTab = 2 }
+                DriverTab("Riwayat", finishedOrders.size, selectedTab == 3, Modifier.weight(1f)) { selectedTab = 3 }
             }
 
             when (selectedTab) {
@@ -245,7 +248,7 @@ fun DriverDashboardScreen(
                         )
                     }
                 )
-                else -> DeliveryOrdersList(
+                2 -> DeliveryOrdersList(
                     orders = deliveryOrders,
                     isProcessing = isProcessing,
                     onChat = { chatOrder = it },
@@ -258,6 +261,43 @@ fun DriverDashboardScreen(
                         )
                     }
                 )
+                else -> FinishedOrdersList(orders = finishedOrders)
+            }
+        }
+    }
+}
+
+@Composable
+private fun FinishedOrdersList(orders: List<Order>) {
+    if (orders.isEmpty()) {
+        EmptyState(
+            icon = Icons.Default.History,
+            title = "Belum ada riwayat pesanan",
+            subtitle = "Pesanan yang sudah kamu selesaikan akan muncul di sini."
+        )
+        return
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        items(orders) { order ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    OrderHeaderRow(order)
+                    Spacer(modifier = Modifier.height(14.dp))
+                    InfoRow(Icons.Default.Person, order.customerName.ifEmpty { "Customer" })
+                    if (order.address.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        InfoRow(Icons.Default.LocationOn, order.address)
+                    }
+                    LaundryInfoSection(order.laundryUid)
+                }
             }
         }
     }
@@ -297,6 +337,7 @@ private fun DeliveryOrdersList(
                         Spacer(modifier = Modifier.height(8.dp))
                         InfoRow(Icons.Default.LocationOn, order.address)
                     }
+                    LaundryInfoSection(order.laundryUid)
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedButton(
                         onClick = { onChat(order) },
@@ -406,6 +447,7 @@ private fun AvailableOrdersList(
                         Spacer(modifier = Modifier.height(8.dp))
                         InfoRow(Icons.Default.LocationOn, order.address)
                     }
+                    LaundryInfoSection(order.laundryUid)
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(
                         onClick = { onAccept(order) },
@@ -460,6 +502,7 @@ private fun MyOrdersList(
                         Spacer(modifier = Modifier.height(8.dp))
                         InfoRow(Icons.Default.LocationOn, order.address)
                     }
+                    LaundryInfoSection(order.laundryUid)
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -564,6 +607,23 @@ private fun OrderHeaderRow(order: Order) {
         }
         StatusChip(order.status)
     }
+}
+
+@Composable
+private fun LaundryInfoSection(laundryUid: String) {
+    var name by remember { mutableStateOf("Memuat...") }
+    var address by remember { mutableStateOf("Memuat alamat...") }
+    LaunchedEffect(laundryUid) {
+        if (laundryUid.isNotEmpty()) {
+            FirebaseFirestore.getInstance().collection("users").document(laundryUid).get()
+                .addOnSuccessListener { doc ->
+                    name = doc.getString("name") ?: "Laundry"
+                    address = doc.getString("address") ?: "Alamat tidak ditemukan"
+                }
+        }
+    }
+    Spacer(modifier = Modifier.height(8.dp))
+    InfoRow(Icons.Default.Store, "$name: $address")
 }
 
 @Composable
