@@ -82,8 +82,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                var isSubscribed by remember { mutableStateOf(false) }
-                var subscriptionPackage by remember { mutableStateOf<String?>(null) }
                 var hasActiveOrder by remember { mutableStateOf(false) }
                 var selectedTopUpMethod by remember { mutableStateOf<TopUpMethod?>(null) }
                 var selectedShop by remember { mutableStateOf<LaundryShop?>(null) }
@@ -178,15 +176,12 @@ class MainActivity : ComponentActivity() {
                                     userEmail = userEmail,
                                     userPhone = userPhone,
                                     userAddress = userAddress,
-                                    isSubscribed = isSubscribed,
-                                    subscriptionPackage = subscriptionPackage,
                                     balance = balance.toInt(),
                                     hasActiveOrder = hasActiveOrder,
                                     ordersViewModel = ordersViewModel,
                                     chatViewModel = chatViewModel,
                                     currentUserId = currentUserId,        // ← BARU
                                     onPlaceOrder = { currentScreen = "laundry_selection" },
-                                    onOpenSubscription = { currentScreen = "subscription" },
                                     onTopUp = { currentScreen = "top_up" },
                                     onOpenPlanner = { currentScreen = "laundry_planner" },
                                     onLogout = { authViewModel.logout() },
@@ -212,7 +207,7 @@ class MainActivity : ComponentActivity() {
                         userName = userName,
                         userPhone = userPhone,
                         userAddress = userAddress,
-                        isSubscribed = isSubscribed,
+                        isSubscribed = false,
                         ordersViewModel = ordersViewModel,
                         laundryUid = selectedShop?.id ?: "",
                         laundryName = selectedShop?.name ?: "",
@@ -222,14 +217,6 @@ class MainActivity : ComponentActivity() {
                     "order_processing" -> OrderProcessingScreen(
                         onFinish = {
                             hasActiveOrder = true
-                            currentScreen = "dashboard"
-                        }
-                    )
-                    "subscription" -> SubscriptionScreen(
-                        onBack = { currentScreen = "dashboard" },
-                        onSubscribeSuccess = {
-                            isSubscribed = true
-                            subscriptionPackage = "Bulanan Plus+"
                             currentScreen = "dashboard"
                         }
                     )
@@ -246,10 +233,16 @@ class MainActivity : ComponentActivity() {
                                 method = method,
                                 onBack = { currentScreen = "top_up" },
                                 onConfirm = { amount ->
-                                    authViewModel.topUp(amount.toLong()) {
-                                        Toast.makeText(context, "Top Up Berhasil!", Toast.LENGTH_LONG).show()
-                                        currentScreen = "dashboard"
-                                    }
+                                    authViewModel.topUp(
+                                        amount.toLong(),
+                                        onSuccess = {
+                                            Toast.makeText(context, "Top Up berhasil! Saldo KlinPay kamu sudah bertambah.", Toast.LENGTH_LONG).show()
+                                            currentScreen = "dashboard"
+                                        },
+                                        onError = { msg ->
+                                            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                                        }
+                                    )
                                 }
                             )
                         }

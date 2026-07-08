@@ -24,12 +24,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.klinklinapps.R
 import com.example.klinklinapps.data.ChatMessage
 import com.example.klinklinapps.data.Order
 import com.example.klinklinapps.ui.theme.White
@@ -48,6 +53,7 @@ object KlinKlinTheme {
     val Secondary = Color(0xFFE3F2FD)
     val MutedForeground = Color(0xFF64748B)
     val Accent = Color(0xFF42A5F5)
+    val AccentYellow = Color(0xFFFFC107)
 
     // Biru tua untuk teks promo carousel
     val PromoDarkText = Color(0xFF1565C0)
@@ -116,60 +122,140 @@ data class WeatherDay(
     val humidity: Int
 )
 
-// ==================== HEADER COMPONENT ====================
+// ==================== HOME HERO (BRAND + GREETING + SALDO) ====================
 @Composable
-fun Header(userName: String, onNotificationClick: () -> Unit = {}) {
-    Row(
+fun HomeHero(
+    userName: String,
+    balance: Int,
+    onTopUp: () -> Unit,
+    onNotificationClick: () -> Unit
+) {
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 32.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(bottomStart = 32.dp, bottomEnd = 32.dp))
+            .background(
+                Brush.verticalGradient(listOf(KlinKlinTheme.Primary, KlinKlinTheme.Accent))
+            )
+            .padding(horizontal = 24.dp)
+            .padding(top = 52.dp, bottom = 24.dp)
     ) {
+        // Brand row: logo KlinKlin (outline putih, tanpa wadah) + nama app + notifikasi
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = R.drawable.logo_klinklin_outline),
+                contentDescription = "Logo KlinKlin",
+                modifier = Modifier.size(48.dp),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "KlinKlin",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+                Text(
+                    text = "Laundry Antar-Jemput",
+                    fontSize = 10.sp,
+                    color = Color.White.copy(0.75f)
+                )
+            }
             Box(
                 modifier = Modifier
-                    .size(52.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(KlinKlinTheme.Secondary),
+                    .background(Color.White.copy(0.18f))
+                    .bounceClick { onNotificationClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    tint = KlinKlinTheme.Primary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    text = "Halo Bli,",
-                    fontSize = 12.sp,
-                    color = KlinKlinTheme.MutedForeground
-                )
-                Text(
-                    text = userName,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    color = KlinKlinTheme.Foreground
+                    imageVector = Icons.Default.Notifications,
+                    contentDescription = "Notifikasi",
+                    tint = Color.White
                 )
             }
         }
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .shadow(2.dp, CircleShape)
-                .clip(CircleShape)
-                .background(Color.White)
-                .bounceClick { onNotificationClick() },
-            contentAlignment = Alignment.Center
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text(
+            text = "Halo Bli 👋",
+            fontSize = 13.sp,
+            color = Color.White.copy(0.85f)
+        )
+        Text(
+            text = userName,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Black,
+            color = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Kartu saldo — kontras putih di atas gradien
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
-            Icon(
-                imageVector = Icons.Default.Notifications,
-                contentDescription = "Notifikasi",
-                tint = KlinKlinTheme.Primary
-            )
+            Row(
+                modifier = Modifier.padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(KlinKlinTheme.Secondary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AccountBalanceWallet,
+                        contentDescription = null,
+                        tint = KlinKlinTheme.Primary
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Saldo KlinPay",
+                        fontSize = 11.sp,
+                        color = KlinKlinTheme.MutedForeground
+                    )
+                    Text(
+                        text = "Rp ${String.format(Locale("id", "ID"), "%,d", balance)}",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = KlinKlinTheme.Foreground
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = KlinKlinTheme.AccentYellow,
+                    modifier = Modifier.bounceClick { onTopUp() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = KlinKlinTheme.Foreground,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Top Up",
+                            color = KlinKlinTheme.Foreground,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -220,67 +306,9 @@ fun ActiveOrderReminder(message: String, onClick: () -> Unit) {
     }
 }
 
-// ==================== WALLET CARD ====================
-@Composable
-fun WalletCard(balance: Int, onTopUp: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(KlinKlinTheme.Secondary),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AccountBalanceWallet,
-                    contentDescription = null,
-                    tint = KlinKlinTheme.Primary
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Saldo KlinPay",
-                    fontSize = 11.sp,
-                    color = KlinKlinTheme.MutedForeground
-                )
-                Text(
-                    text = "Rp ${String.format(Locale("id", "ID"), "%,d", balance)}",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    color = KlinKlinTheme.Foreground
-                )
-            }
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = KlinKlinTheme.Primary,
-                modifier = Modifier.bounceClick { onTopUp() }
-            ) {
-                Text(
-                    text = "Top Up",
-                    color = Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                )
-            }
-        }
-    }
-}
-
 // ==================== PROMO CAROUSEL (UPDATED COLORS) ====================
 @Composable
-fun PromoCarousel(onSeeAll: () -> Unit = {}) {
+fun PromoCarousel(onSeeAll: () -> Unit = {}, onPromoClick: (PromoData) -> Unit = {}) {
     val promos = listOf(
         PromoData(1, "Bikin Sepatu Kinclong!", "Cuci sepatu premium dengan teknologi terbaru", "20%", KlinKlinTheme.PromoBg1, Icons.Default.AutoAwesome),
         PromoData(2, "Diskon Merchant", "Hemat lebih banyak untuk member setia", "30%", KlinKlinTheme.PromoBg2, Icons.Default.Percent),
@@ -315,12 +343,7 @@ fun PromoCarousel(onSeeAll: () -> Unit = {}) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Promo Minggu Ini",
-                fontWeight = FontWeight.Black,
-                fontSize = 16.sp,
-                color = KlinKlinTheme.Foreground
-            )
+            SectionTitle("Promo Minggu Ini")
             Text(
                 text = "Lihat Semua",
                 fontSize = 12.sp,
@@ -362,7 +385,7 @@ fun PromoCarousel(onSeeAll: () -> Unit = {}) {
                             .clickable(
                                 interactionSource = interactionSource,
                                 indication = null
-                            ) { },
+                            ) { onPromoClick(promo) },
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = promo.bgColor)
                     ) {
@@ -488,6 +511,18 @@ fun PromoCarousel(onSeeAll: () -> Unit = {}) {
 // ==================== SERVICE CARD ====================
 @Composable
 fun ServiceCard(service: Service, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    // Ikon goyang halus terus-menerus, senada dengan ikon promo carousel
+    val infiniteTransition = rememberInfiniteTransition(label = "serviceIconWobble")
+    val iconRotation by infiniteTransition.animateFloat(
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "serviceIconRotation"
+    )
+
     Card(
         modifier = modifier
             .height(160.dp)
@@ -507,7 +542,8 @@ fun ServiceCard(service: Service, onClick: () -> Unit, modifier: Modifier = Modi
                     Icon(
                         imageVector = service.icon,
                         contentDescription = null,
-                        tint = KlinKlinTheme.Primary
+                        tint = KlinKlinTheme.Primary,
+                        modifier = Modifier.rotate(iconRotation)
                     )
                 }
                 Spacer(modifier = Modifier.weight(1f))
@@ -543,47 +579,121 @@ fun ServiceCard(service: Service, onClick: () -> Unit, modifier: Modifier = Modi
     }
 }
 
-// ==================== SUBSCRIPTION CARD ====================
+// ==================== PROMO DETAIL DIALOG ====================
+// Detail voucher/promo: muncul saat kartu promo di-klik (home carousel & tab Promo).
 @Composable
-fun SubscriptionCard(onUpgrade: () -> Unit) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .bounceClick { onUpgrade() },
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = KlinKlinTheme.Primary)
-    ) {
-        Row(
-            modifier = Modifier.padding(24.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Bersih Plus+",
-                    color = Color.White,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
-                )
-                Text(
-                    text = "Hemat s/d 30% tiap bulan!",
-                    color = Color.White.copy(0.7f),
-                    fontSize = 12.sp
-                )
-            }
-            Surface(
-                color = Color.White,
-                shape = RoundedCornerShape(12.dp)
+fun PromoDetailDialog(promo: PromoData, onDismiss: () -> Unit, onUse: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(promo.bgColor),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "Upgrade",
-                    color = KlinKlinTheme.Primary,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    fontSize = 12.sp
+                Icon(
+                    imageVector = promo.icon,
+                    contentDescription = null,
+                    tint = KlinKlinTheme.PromoDarkText,
+                    modifier = Modifier.size(30.dp)
                 )
             }
-        }
+        },
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(
+                    color = KlinKlinTheme.AccentYellow.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = "DISKON ${promo.discount}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFFB8860B),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    promo.title,
+                    fontWeight = FontWeight.Black,
+                    color = KlinKlinTheme.Foreground,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    promo.desc,
+                    color = KlinKlinTheme.MutedForeground,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Surface(
+                    color = KlinKlinTheme.Secondary,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "Syarat & Ketentuan",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = KlinKlinTheme.Primary
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            "• Berlaku untuk semua mitra laundry KlinKlin\n" +
+                                "• Tidak dapat digabung dengan promo lain\n" +
+                                "• Otomatis terpakai saat membuat pesanan\n" +
+                                "• Periode terbatas, selama kuota tersedia",
+                            fontSize = 11.sp,
+                            color = KlinKlinTheme.MutedForeground,
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onDismiss()
+                    onUse()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = KlinKlinTheme.Primary)
+            ) { Text("Gunakan Sekarang", fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Nanti Saja", color = KlinKlinTheme.MutedForeground) }
+        },
+        containerColor = Color.White
+    )
+}
+
+// ==================== SECTION TITLE ====================
+// Judul seksi dengan aksen batang kuning — dipakai di seluruh home dashboard.
+@Composable
+fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(width = 4.dp, height = 16.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(KlinKlinTheme.AccentYellow)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            fontWeight = FontWeight.Black,
+            fontSize = 16.sp,
+            color = KlinKlinTheme.Foreground
+        )
     }
 }
 
@@ -882,17 +992,17 @@ fun BottomNavigation(selectedTab: Int, onTabSelected: (Int) -> Unit) {
                     Icon(
                         imageVector = icon,
                         contentDescription = label,
-                        tint = if (isSelected) KlinKlinTheme.Accent
+                        tint = if (isSelected) KlinKlinTheme.AccentYellow
                         else Color.White.copy(alpha = animatedAlpha),
                         modifier = Modifier.size(24.dp)
                     )
                     if (isSelected) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(4.dp)
-                                .clip(CircleShape)
-                                .background(KlinKlinTheme.Accent)
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = label,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = KlinKlinTheme.AccentYellow
                         )
                     }
                 }
@@ -1021,133 +1131,6 @@ fun KlinCustomerOrderCard(order: Order, onClick: () -> Unit, onChat: () -> Unit 
     }
 }
 
-// ==================== PROFILE SCREEN ====================
-@Composable
-fun KlinProfileScreen(
-    userName: String,
-    userEmail: String,
-    userPhone: String,
-    userAddress: String,
-    subscriptionPackage: String?,
-    onLogout: () -> Unit,
-    onOpenSubscription: () -> Unit,
-    onDeleteAccount: () -> Unit = {}
-) {
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showLogoutDialog by remember { mutableStateOf(false) }
-    if (showDeleteDialog) {
-        DeleteAccountDialog(
-            onDismiss = { showDeleteDialog = false },
-            onConfirm = {
-                showDeleteDialog = false
-                onDeleteAccount()
-            }
-        )
-    }
-    if (showLogoutDialog) {
-        LogoutConfirmDialog(
-            onDismiss = { showLogoutDialog = false },
-            onConfirm = {
-                showLogoutDialog = false
-                onLogout()
-            }
-        )
-    }
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 32.dp)
-            .padding(bottom = 120.dp)
-    ) {
-        Text(
-            "Profile",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Black,
-            color = KlinKlinTheme.Foreground
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                ProfileInfoRow("Nama", userName)
-                Spacer(modifier = Modifier.height(16.dp))
-                ProfileInfoRow("Email", userEmail)
-                Spacer(modifier = Modifier.height(16.dp))
-                ProfileInfoRow("Telepon", userPhone)
-                Spacer(modifier = Modifier.height(16.dp))
-                ProfileInfoRow("Alamat", userAddress)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onOpenSubscription() },
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (subscriptionPackage != null) KlinKlinTheme.Primary else Color.White
-            )
-        ) {
-            Row(
-                modifier = Modifier.padding(24.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (subscriptionPackage != null) "Member $subscriptionPackage" else "Belum Berlangganan",
-                        fontWeight = FontWeight.Bold,
-                        color = if (subscriptionPackage != null) Color.White else KlinKlinTheme.Foreground
-                    )
-                    Text(
-                        text = if (subscriptionPackage != null) "Aktif" else "Upgrade sekarang",
-                        fontSize = 12.sp,
-                        color = if (subscriptionPackage != null) Color.White.copy(0.7f) else KlinKlinTheme.MutedForeground
-                    )
-                }
-                Icon(
-                    Icons.Default.ChevronRight,
-                    null,
-                    tint = if (subscriptionPackage != null) Color.White else KlinKlinTheme.MutedForeground
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = { showLogoutDialog = true },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Red.copy(alpha = 0.1f),
-                contentColor = Color.Red
-            )
-        ) {
-            Text("Keluar", fontWeight = FontWeight.Bold)
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        TextButton(
-            onClick = { showDeleteDialog = true },
-            modifier = Modifier.fillMaxWidth().height(48.dp)
-        ) {
-            Icon(Icons.Default.DeleteForever, contentDescription = null, tint = Color.Red, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Hapus Akun Permanen", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        }
-    }
-}
-
 // Dialog konfirmasi hapus akun — dipakai bersama customer/driver/laundry.
 @Composable
 fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
@@ -1173,15 +1156,6 @@ fun DeleteAccountDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
         },
         containerColor = Color.White
     )
-}
-
-@Composable
-fun ProfileInfoRow(label: String, value: String) {
-    Column {
-        Text(label, fontSize = 12.sp, color = KlinKlinTheme.MutedForeground)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(value, fontWeight = FontWeight.Bold, color = KlinKlinTheme.Foreground)
-    }
 }
 
 // ==================== CHAT SCREEN (UPDATED WITH ChatMessage) ====================
@@ -1558,13 +1532,13 @@ fun SystemReminderBubble(msg: ChatMessage) {
 
 // ==================== PROMO SCREEN (FULL) ====================
 @Composable
-fun KlinPromoScreen() {
+fun KlinPromoScreen(onPromoClick: (PromoData) -> Unit = {}) {
     val promoList = listOf(
-        Triple("Flash Sale Sepatu", "Diskon 40% cuci \nsepatu all type", "40%"),
-        Triple("Member Baru", "Gratis ongkir 3x untuk pendaftar baru", "FREE"),
-        Triple("Flash Sale Sepatu", "Diskon 40% cuci \nsepatu all type", "40%"),
-        Triple("Flash Sale Sepatu", "Diskon 40% cuci \nsepatu all type", "40%"),
-        Triple("Paket Hemat", "Cuci + setrika 5kg \nhanya Rp 35.000", "35K")
+        PromoData(101, "Flash Sale Sepatu", "Diskon 40% cuci sepatu all type", "40%", KlinKlinTheme.PromoBg1, Icons.Default.AutoAwesome),
+        PromoData(102, "Member Baru", "Gratis ongkir 3x untuk pendaftar baru", "FREE", KlinKlinTheme.PromoBg2, Icons.Default.LocalShipping),
+        PromoData(103, "Diskon Merchant", "Hemat lebih banyak untuk member setia", "30%", KlinKlinTheme.PromoBg3, Icons.Default.Percent),
+        PromoData(104, "Bikin Sepatu Kinclong", "Cuci sepatu premium teknologi terbaru", "20%", KlinKlinTheme.PromoBg1, Icons.Default.AutoAwesome),
+        PromoData(105, "Paket Hemat", "Cuci + setrika 5kg hanya Rp 35.000", "35K", KlinKlinTheme.PromoBg2, Icons.Default.LocalOffer)
     )
 
     LazyColumn(
@@ -1588,9 +1562,11 @@ fun KlinPromoScreen() {
                 color = KlinKlinTheme.MutedForeground
             )
         }
-        items(promoList) { (title, desc, badge) ->
+        items(promoList) { promo ->
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bounceClick { onPromoClick(promo) },
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
@@ -1601,25 +1577,26 @@ fun KlinPromoScreen() {
                     Box(
                         modifier = Modifier
                             .size(52.dp)
-                            .background(KlinKlinTheme.Secondary, RoundedCornerShape(14.dp)),
+                            .background(promo.bgColor, RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = badge,
+                            text = promo.discount,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Black,
-                            color = KlinKlinTheme.Primary,
+                            color = KlinKlinTheme.PromoDarkText,
                             textAlign = TextAlign.Center
                         )
                     }
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = KlinKlinTheme.Foreground)
-                        Text(desc, fontSize = 12.sp, color = KlinKlinTheme.MutedForeground, lineHeight = 16.sp)
+                        Text(promo.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = KlinKlinTheme.Foreground)
+                        Text(promo.desc, fontSize = 12.sp, color = KlinKlinTheme.MutedForeground, lineHeight = 16.sp)
                     }
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = KlinKlinTheme.Primary
+                        color = KlinKlinTheme.Primary,
+                        modifier = Modifier.bounceClick { onPromoClick(promo) }
                     ) {
                         Text(
                             "Klaim",
@@ -1642,15 +1619,12 @@ fun DashboardScreen(
     userEmail: String,
     userPhone: String,
     userAddress: String,
-    isSubscribed: Boolean,
-    subscriptionPackage: String?,
     balance: Int,
     hasActiveOrder: Boolean,
     ordersViewModel: OrdersViewModel,
     chatViewModel: ChatViewModel,
     currentUserId: String = "",
     onPlaceOrder: () -> Unit,
-    onOpenSubscription: () -> Unit,
     onTopUp: () -> Unit,
     onOpenPlanner: () -> Unit,
     onLogout: () -> Unit,
@@ -1660,7 +1634,9 @@ fun DashboardScreen(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var selectedOrder by remember { mutableStateOf<Order?>(null) }
+    var selectedPromo by remember { mutableStateOf<PromoData?>(null) }
     val reminder by ordersViewModel.reminder
+    val orders by ordersViewModel.orders
 
     val services = listOf(
         Service("Cuci Lipat", "Bersih & Harum", Icons.Default.LocalLaundryService, KlinKlinTheme.ServiceBg1),
@@ -1730,6 +1706,15 @@ fun DashboardScreen(
             onOpenChat = { chatOrder = selectedOrder }
         )
     } else {
+        // Detail voucher/promo yang di-klik
+        selectedPromo?.let { promo ->
+            PromoDetailDialog(
+                promo = promo,
+                onDismiss = { selectedPromo = null },
+                onUse = { onPlaceOrder() }
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -1743,27 +1728,33 @@ fun DashboardScreen(
                             .verticalScroll(rememberScrollState())
                             .padding(bottom = 120.dp)
                     ) {
-                        Header(userName = userName, onNotificationClick = { selectedTab = 2 })
+                        HomeHero(
+                            userName = userName,
+                            balance = balance,
+                            onTopUp = onTopUp,
+                            onNotificationClick = { selectedTab = 2 }
+                        )
 
                         if (hasActiveOrder || reminder != null) {
+                            Spacer(modifier = Modifier.height(20.dp))
                             ActiveOrderReminder(
                                 message = reminder?.message ?: "Pakaianmu siap diambil hari ini!",
-                                onClick = onPlaceOrder
+                                onClick = {
+                                    // Buka detail pesanan aktif terbaru; kalau tidak ada, ke tab Pesanan
+                                    val activeOrder = orders.firstOrNull { it.status != "SELESAI" }
+                                    if (activeOrder != null) selectedOrder = activeOrder
+                                    else selectedTab = 2
+                                }
                             )
-                            Spacer(modifier = Modifier.height(20.dp))
                         }
 
-                        WalletCard(balance = balance, onTopUp = onTopUp)
-
-                        PromoCarousel(onSeeAll = { selectedTab = 1 })
+                        PromoCarousel(
+                            onSeeAll = { selectedTab = 1 },
+                            onPromoClick = { selectedPromo = it }
+                        )
 
                         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-                            Text(
-                                text = "Layanan Utama",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                                color = KlinKlinTheme.Foreground
-                            )
+                            SectionTitle("Layanan Utama")
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Row(
@@ -1784,8 +1775,6 @@ fun DashboardScreen(
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
-                        SubscriptionCard(onUpgrade = onOpenSubscription)
-                        Spacer(modifier = Modifier.height(16.dp))
 
                         // Smart Planner + Weather side by side feel → stacked with same padding
                         SmartPlannerCard(onOpen = onOpenPlanner)
@@ -1795,7 +1784,7 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(40.dp))
                     }
                 }
-                1 -> KlinPromoScreen()
+                1 -> KlinPromoScreen(onPromoClick = { selectedPromo = it })
                 2 -> KlinOrdersScreen(
                     ordersViewModel = ordersViewModel,
                     onClick = { order -> selectedOrder = order },

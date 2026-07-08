@@ -103,13 +103,15 @@ class AuthViewModel : ViewModel() {
         db.collection("users").document(uid).set(userData)
     }
 
-    fun topUp(amount: Long, onSuccess: () -> Unit) {
+    fun topUp(amount: Long, onSuccess: () -> Unit, onError: (String) -> Unit = {}) {
         val user = auth.currentUser ?: return
         db.collection("users").document(user.uid)
             .update("balance", FieldValue.increment(amount))
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { e ->
-                _errorMessage.value = "Top up gagal: ${e.localizedMessage}"
+                val msg = "Top up gagal: ${e.localizedMessage}"
+                _errorMessage.value = msg
+                onError(msg)
             }
     }
 
