@@ -70,6 +70,7 @@ fun DriverDashboardScreen(
     val context = LocalContext.current
     val availableOrders by viewModel.availableOrders
     val myOrders by viewModel.myOrders
+    val deliveryOrders by viewModel.deliveryOrders
     val driverName by viewModel.driverName
     val isProcessing by viewModel.isProcessing
     val errorMessage by viewModel.errorMessage
